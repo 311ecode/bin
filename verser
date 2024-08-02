@@ -92,13 +92,32 @@ function concatenateVerses(filePaths) {
             result += `[${index}.]`;
             if (versions.every(v => v.sentence === '---')) {
                 result += ' ---\n';
-            } else if (versions.length === 1) {
-                result += ` ${versions[0].sentence}\n`;
             } else {
-                result += '\n';
-                versions.forEach(version => {
-                    result += `[${version.name}] ${version.sentence}\n`;
+                let uniqueSentences = new Map();
+                versions.forEach(v => {
+                    if (!uniqueSentences.has(v.sentence)) {
+                        uniqueSentences.set(v.sentence, [v.name]);
+                    } else {
+                        uniqueSentences.get(v.sentence).push(v.name);
+                    }
                 });
+
+                if (uniqueSentences.size === 1 && versions.length > 1) {
+                    // All sentences are the same
+                    result += ` ${versions[0].sentence}\n`;
+                } else if (uniqueSentences.size > 1) {
+                    result += '\n';
+                    for (let [sentence, names] of uniqueSentences) {
+                        if (names.length > 1) {
+                            result += `[${names.join(' ')}] ${sentence}\n`;
+                        } else {
+                            result += `[${names[0]}] ${sentence}\n`;
+                        }
+                    }
+                } else {
+                    // Only one version
+                    result += ` ${versions[0].sentence}\n`;
+                }
             }
             result += '\n';
         }
@@ -106,7 +125,6 @@ function concatenateVerses(filePaths) {
 
     return result.trim();
 }
-
 function processFiles(args) {
     let concatIndex = args.indexOf('-c');
     if (concatIndex === -1) concatIndex = args.indexOf('--concat');
