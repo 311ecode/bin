@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
+// converts a text to verse format
 function convertToVerse(text) {
   let paragraphs = text.split('\n');
   let verseNumber = 1;
