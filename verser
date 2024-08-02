@@ -4,153 +4,153 @@ const fs = require('fs');
 const path = require('path');
 
 function convertToVerse(text) {
-    let paragraphs = text.split('\n');
-    let verseNumber = 1;
-    let result = '';
+  let paragraphs = text.split('\n');
+  let verseNumber = 1;
+  let result = '';
 
-    for (let paragraph of paragraphs) {
-        if (paragraph.trim() === '') {
-            result += `|${verseNumber}.|---\n`;
-            verseNumber++;
+  for (let paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      result += `|${verseNumber}.|---\n`;
+      verseNumber++;
+    } else {
+      let sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
+      for (let sentence of sentences) {
+        sentence = sentence.trim();
+        if (/^\|\d+\.\|/.test(sentence)) {
+          result += sentence + '\n';
         } else {
-            let sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
-            for (let sentence of sentences) {
-                sentence = sentence.trim();
-                if (/^\|\d+\.\|/.test(sentence)) {
-                    result += sentence + '\n';
-                } else {
-                    result += `|${verseNumber}.| ${sentence}\n`;
-                    verseNumber++;
-                }
-            }
+          result += `|${verseNumber}.| ${sentence}\n`;
+          verseNumber++;
         }
+      }
     }
+  }
 
-    return result.trim();
+  return result.trim();
 }
 
 function convertFromVerse(text) {
-    let verses = text.split('\n');
-    let result = '';
-    let consecutiveNewlines = 0;
-    let lastLineWasContent = false;
+  let verses = text.split('\n');
+  let result = '';
+  let consecutiveNewlines = 0;
+  let lastLineWasContent = false;
 
-    for (let verse of verses) {
-        verse = verse.trim();
-        if (verse.endsWith('|---')) {
-            consecutiveNewlines++;
-        } else {
-            if (lastLineWasContent) {
-                result += '\n'.repeat(Math.max(consecutiveNewlines, 1));
-            } else if (consecutiveNewlines > 0) {
-                result += '\n'.repeat(consecutiveNewlines);
-            }
-            result += verse.replace(/^\|\d+\.\|\s*/, '');
-            consecutiveNewlines = 0;
-            lastLineWasContent = true;
-        }
+  for (let verse of verses) {
+    verse = verse.trim();
+    if (verse.endsWith('|---')) {
+      consecutiveNewlines++;
+    } else {
+      if (lastLineWasContent) {
+        result += '\n'.repeat(Math.max(consecutiveNewlines, 1));
+      } else if (consecutiveNewlines > 0) {
+        result += '\n'.repeat(consecutiveNewlines);
+      }
+      result += verse.replace(/^\|\d+\.\|\s*/, '');
+      consecutiveNewlines = 0;
+      lastLineWasContent = true;
     }
+  }
 
-    return result.trim();
+  return result.trim();
 }
 
 function mapVersesToArray(filePaths) {
-    let versionNames = filePaths.map(filePath => path.basename(filePath, '.verses').replace('.md', ''));
-    let allVerses = [];
+  let versionNames = filePaths.map(filePath => path.basename(filePath, '.verses').replace('.md', ''));
+  let allVerses = [];
 
-    filePaths.forEach((filePath, index) => {
-        try {
-            let content = fs.readFileSync(filePath, 'utf8').split('\n');
-            content.forEach(line => {
-                let match = line.match(/^\|(\d+)\.\|\s*(.*)/);
-                if (match) {
-                    let lineNumber = parseInt(match[1]);
-                    let sentence = match[2].trim();
-                    if (!allVerses[lineNumber]) {
-                        allVerses[lineNumber] = [];
-                    }
-                    allVerses[lineNumber].push({
-                        name: versionNames[index],
-                        sentence: sentence
-                    });
-                }
-            });
-        } catch (err) {
-            console.error(`Error reading file ${filePath}:`, err);
+  filePaths.forEach((filePath, index) => {
+    try {
+      let content = fs.readFileSync(filePath, 'utf8').split('\n');
+      content.forEach(line => {
+        let match = line.match(/^\|(\d+)\.\|\s*(.*)/);
+        if (match) {
+          let lineNumber = parseInt(match[1]);
+          let sentence = match[2].trim();
+          if (!allVerses[lineNumber]) {
+            allVerses[lineNumber] = [];
+          }
+          allVerses[lineNumber].push({
+            name: versionNames[index],
+            sentence: sentence
+          });
         }
-    });
+      });
+    } catch (err) {
+      console.error(`Error reading file ${filePath}:`, err);
+    }
+  });
 
-    return allVerses;
+  return allVerses;
 }
 
 function concatenateVerses(filePaths) {
-    let mappedVerses = mapVersesToArray(filePaths);
-    let result = '';
+  let mappedVerses = mapVersesToArray(filePaths);
+  let result = '';
 
-    mappedVerses.forEach((versions, index) => {
-        if (versions && versions.length > 0) {
-            result += `[${index}.]`;
-            if (versions.every(v => v.sentence === '---')) {
-                result += ' ---\n';
+  mappedVerses.forEach((versions, index) => {
+    if (versions && versions.length > 0) {
+      result += `[${index}.]`;
+      if (versions.every(v => v.sentence === '---')) {
+        result += ' ---\n';
+      } else {
+        let uniqueSentences = new Map();
+        versions.forEach(v => {
+          if (!uniqueSentences.has(v.sentence)) {
+            uniqueSentences.set(v.sentence, [v.name]);
+          } else {
+            uniqueSentences.get(v.sentence).push(v.name);
+          }
+        });
+
+        if (uniqueSentences.size === 1 && versions.length > 1) {
+          // All sentences are the same
+          result += ` ${versions[0].sentence}\n`;
+        } else if (uniqueSentences.size > 1) {
+          result += '\n';
+          for (let [sentence, names] of uniqueSentences) {
+            if (names.length > 1) {
+              result += `[${names.join(' ')}] ${sentence}\n`;
             } else {
-                let uniqueSentences = new Map();
-                versions.forEach(v => {
-                    if (!uniqueSentences.has(v.sentence)) {
-                        uniqueSentences.set(v.sentence, [v.name]);
-                    } else {
-                        uniqueSentences.get(v.sentence).push(v.name);
-                    }
-                });
-
-                if (uniqueSentences.size === 1 && versions.length > 1) {
-                    // All sentences are the same
-                    result += ` ${versions[0].sentence}\n`;
-                } else if (uniqueSentences.size > 1) {
-                    result += '\n';
-                    for (let [sentence, names] of uniqueSentences) {
-                        if (names.length > 1) {
-                            result += `[${names.join(' ')}] ${sentence}\n`;
-                        } else {
-                            result += `[${names[0]}] ${sentence}\n`;
-                        }
-                    }
-                } else {
-                    // Only one version
-                    result += ` ${versions[0].sentence}\n`;
-                }
+              result += `[${names[0]}] ${sentence}\n`;
             }
-            result += '\n';
+          }
+        } else {
+          // Only one version
+          result += ` ${versions[0].sentence}\n`;
         }
-    });
+      }
+      result += '\n';
+    }
+  });
 
-    return result.trim();
+  return result.trim();
 }
 function processFiles(args) {
-    let concatIndex = args.indexOf('-c');
-    if (concatIndex === -1) concatIndex = args.indexOf('--concat');
+  let concatIndex = args.indexOf('-c');
+  if (concatIndex === -1) concatIndex = args.indexOf('--concat');
 
-    if (concatIndex !== -1) {
-        let filePaths = args.slice(concatIndex + 1);
-        if (filePaths.length >= 2) {
-            let concatenated = concatenateVerses(filePaths);
-            let outputPath = 'concatenated_verses.txt';
-            fs.writeFileSync(outputPath, concatenated);
-            console.log(`Concatenated verses saved as: ${outputPath}`);
-        } else {
-            console.log('Please provide at least two file paths for concatenation.');
-        }
-    } else if (args.length === 1) {
-        processFile(args[0]);
+  if (concatIndex !== -1) {
+    let filePaths = args.slice(concatIndex + 1);
+    if (filePaths.length >= 2) {
+      let concatenated = concatenateVerses(filePaths);
+      let outputPath = 'concatenated_verses.txt';
+      fs.writeFileSync(outputPath, concatenated);
+      console.log(`Concatenated verses saved as: ${outputPath}`);
     } else {
-        console.log('Please provide correct arguments:');
-        console.log('- For single file conversion: node script.js <filename>');
-        console.log('- For concatenation: node script.js -c <file1> <file2> [<file3> ...]');
+      console.log('Please provide at least two file paths for concatenation.');
     }
+  } else if (args.length === 1) {
+    processFile(args[0]);
+  } else {
+    console.log('Please provide correct arguments:');
+    console.log('- For single file conversion: node script.js <filename>');
+    console.log('- For concatenation: node script.js -c <file1> <file2> [<file3> ...]');
+  }
 }
 
 // Check if arguments are provided
 if (process.argv.length < 3) {
-    console.log('Please provide file path(s) as argument(s).');
+  console.log('Please provide file path(s) as argument(s).');
 } else {
-    processFiles(process.argv.slice(2));
+  processFiles(process.argv.slice(2));
 }
