@@ -7,10 +7,6 @@ async function chatWithOllama(model, message, endpoint = "http://localhost:11434
     const payload = {
         model: model,
         prompt: message,
-
-        // Optional parameters
-        // max_tokens: 1000,
-        temperature: 0.8,
     };
     
     try {
@@ -26,29 +22,40 @@ async function chatWithOllama(model, message, endpoint = "http://localhost:11434
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        // Get the raw text of the response
-        const rawText = await response.text();
-        console.log("Raw API response:");
-        console.log(rawText);
+        let fullResponse = '';
 
-        // Try to parse the JSON
-        try {
-            const data = JSON.parse(rawText);
-            return data.response;
-        } catch (parseError) {
-            console.error("Error parsing JSON:", parseError);
-            return `Error parsing response: ${parseError.message}`;
+        // Use response.text() to get the full response as a string
+        const text = await response.text();
+        const lines = text.split('\n');
+        
+        for (const line of lines) {
+            if (line.trim() !== '') {
+                try {
+                    const jsonResponse = JSON.parse(line);
+                    fullResponse += jsonResponse.response;
+                    if (jsonResponse.done) {
+                        break;
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing JSON:", parseError);
+                }
+            }
         }
+
+        return fullResponse;
     } catch (error) {
         return `Error: ${error.message}`;
     }
 }
-
 // Example usage
 
-const model = process.argv[2] || "gemma2:27b";
+const model = process.argv[2]  || "gemma2:27b";
 
-const message = process.argv[3] || `
+// "qwen2:0.5b" 
+
+const message = process.argv[3]|| 
+// 'hello' || 
+`
 Act as a C2-level target language translator. Translate the given text to the target language, preserving line numbers and structure. Use advanced vocabulary and natural target language sentence structures. Only provide the translation, no explanations.
 
 Rules:
