@@ -5,14 +5,16 @@ const extraDefaultPayloads = {
   "gemma2:27b": {
     // model: "gemma2:27b",
     // prompt: "<start_of_turn>user You are a professional literary translator. Translate the following text from [source language] to [target language], maintaining the original style, tone, and nuances: [Your text here]<end_of_turn>",
-    max_tokens: 4096,  // Adjust based on your text length, up to the model's limit
+    // max_tokens: 4096*2,  // Adjust based on your text length, up to the model's limit
     temperature: 0.7,  // A balance between creativity and accuracy
-    top_p: 0.9,        // Default, works well for most literary translations
-    top_k: 100,        // Increased for wider vocabulary selection
-    repeat_penalty: 1.15,  // Slightly increased to reduce repetition in longer texts
-    presence_penalty: 0.2, // Encourages coverage of different elements in the text
-    frequency_penalty: 0.2, // Encourages use of a diverse vocabulary
-    stop: ["<start_of_turn>", "<end_of_turn>"],  // As specified in the model parameters
+
+    // top_p: 0.9,        // Default, works well for most literary translations
+    // top_k: 100,        // Increased for wider vocabulary selection
+    // repeat_penalty: 1.15,  // Slightly increased to reduce repetition in longer texts
+    // presence_penalty: 0.2, // Encourages coverage of different elements in the text
+    // frequency_penalty: 0.2, // Encourages use of a diverse vocabulary
+
+    // stop: ["<start_of_turn>", "<end_of_turn>"],  // As specified in the model parameters
     seed: 42  // Set a specific seed for reproducibility, change as needed
   }
 }
