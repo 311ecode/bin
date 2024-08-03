@@ -480,15 +480,29 @@ async function processTranslation(params) {
 
     // Check if the chunk has any content other than separator lines
     if (chunk.replace(/\|\d+\.\|---\n/g, '').trim() === '') {
-      console.log('Skipping chunk as it contains no substantive content to translate.');
+      console.log('Skipping chunk as it contains no substantive content to translate.', {
+        chunk
+      });
       startLine = endLine;
       continue;
     }
 
+    console.log('directions:' + directions);
+    
     const prompt = directions + '\n' + chunk;
+    console.log('Chunk ready for translation:' + prompt);
+    
     console.log('Sending chunk to translation model...');
     const translationStartTime = Date.now();
-    const translatedChunk = await chatWithOllama(params.model, prompt);
+    let translatedChunk = '';
+    try {
+      translatedChunk = await chatWithOllama(params.model, prompt);
+    }
+    catch (error) {
+      console.error('Error in translation:', error);
+      console.log('Retrying translation...');
+      process.exit(1);
+    }
     const translationTime = (Date.now() - translationStartTime) / 1000;
     console.log(`Received translated chunk from model in ${translationTime.toFixed(2)} seconds`);
 
@@ -506,6 +520,9 @@ async function processTranslation(params) {
     console.log(`Translation speed: ${charactersPerSecond.toFixed(2)} characters/second`);
 
     translatedContent += translatedChunk + '\n';
+
+    console.log('Translated content preview:', translatedContent);
+    
     
     // Write the translated content to the output file after each chunk
     if (params.output !== 'stdout') {
