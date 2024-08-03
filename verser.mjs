@@ -425,8 +425,14 @@ async function processTranslation(params) {
 
   let translatedContent = '';
   let chunkCount = 0;
+  const totalBytes = Buffer.byteLength(originalContent, 'utf8');
+  let processedBytes = 0;
+  let totalProcessingTime = 0;
+  let chunkTimes = [];
+  const startTime = Date.now();
 
   while (startLine <= maxOrig) {
+    const chunkStartTime = Date.now();
     chunkCount++;
     console.log(`\nProcessing chunk #${chunkCount}`);
     
@@ -435,9 +441,7 @@ async function processTranslation(params) {
     let endLine = startLine;
     let sectionCount = 0;
 
-    while (endLine <= maxOrig && chunkSize < params.maxInputChunk) {
-      console.log(`chunkSize: ${chunkSize}, maxInputChunk: ${params.maxInputChunk}`);
-      
+    while (endLine <= maxOrig && chunkSize + directions.length < params.maxInputChunk) {
       const line = originalLines[endLine - 1];
       
       // Check if adding this line would exceed the max input chunk size
@@ -463,9 +467,14 @@ async function processTranslation(params) {
       endLine = startLine + chunk.split('\n').length - 1;
     }
 
-    console.log(`Chunk size: ${chunkSize} characters`);
+    const chunkBytes = Buffer.byteLength(chunk, 'utf8');
+    processedBytes += chunkBytes;
+    const percentOfDocument = (processedBytes / totalBytes * 100).toFixed(2);
+
+    console.log(`Chunk size: ${chunkSize} characters, ${chunkBytes} bytes`);
     console.log(`Lines in this chunk: ${startLine} to ${endLine - 1}`);
     console.log(`Sections in this chunk: ${sectionCount}`);
+    console.log(`Processed ${processedBytes} of ${totalBytes} bytes (${percentOfDocument}% of document)`);
     console.log('Content preview:');
     console.log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
 
@@ -476,10 +485,25 @@ async function processTranslation(params) {
       continue;
     }
 
-    const prompt = directions + chunk;
+    const prompt = directions + '\n' + chunk;
     console.log('Sending chunk to translation model...');
+    const translationStartTime = Date.now();
     const translatedChunk = await chatWithOllama(params.model, prompt);
-    console.log('Received translated chunk from model');
+    const translationTime = (Date.now() - translationStartTime) / 1000;
+    console.log(`Received translated chunk from model in ${translationTime.toFixed(2)} seconds`);
+
+    const chunkProcessingTime = (Date.now() - chunkStartTime) / 1000;
+    totalProcessingTime += chunkProcessingTime;
+    chunkTimes.push(chunkProcessingTime);
+
+    const avgChunkTime = totalProcessingTime / chunkCount;
+    const estimatedTimeRemaining = avgChunkTime * ((maxOrig - endLine) / (endLine - startLine));
+    const charactersPerSecond = chunkSize / translationTime;
+
+    console.log(`Chunk processing time: ${chunkProcessingTime.toFixed(2)} seconds`);
+    console.log(`Average chunk processing time: ${avgChunkTime.toFixed(2)} seconds`);
+    console.log(`Estimated time remaining: ${formatTime(estimatedTimeRemaining)}`);
+    console.log(`Translation speed: ${charactersPerSecond.toFixed(2)} characters/second`);
 
     translatedContent += translatedChunk + '\n';
     
@@ -501,6 +525,17 @@ async function processTranslation(params) {
     console.log(`Progress: ${((startLine - 1) / maxOrig * 100).toFixed(2)}%`);
   }
 
+  const totalElapsedTime = (Date.now() - startTime) / 1000;
+  const avgChunkTime = totalProcessingTime / chunkCount;
+  const avgCharactersPerSecond = processedBytes / totalElapsedTime;
+
+  console.log('\nTranslation process completed.');
+  console.log(`Total elapsed time: ${formatTime(totalElapsedTime)}`);
+  console.log(`Average chunk processing time: ${avgChunkTime.toFixed(2)} seconds`);
+  console.log(`Fastest chunk: ${Math.min(...chunkTimes).toFixed(2)} seconds`);
+  console.log(`Slowest chunk: ${Math.max(...chunkTimes).toFixed(2)} seconds`);
+  console.log(`Average translation speed: ${avgCharactersPerSecond.toFixed(2)} characters/second`);
+
   // Final output for stdout option
   if (params.output === 'stdout') {
     console.log('Outputting complete translation to stdout:');
@@ -510,6 +545,12 @@ async function processTranslation(params) {
   }
 }
 
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${hours}h ${minutes}m ${remainingSeconds}s`;
+}
 function parseVerses(content) {
   const lines = content.split('\n');
   const verses = {};
