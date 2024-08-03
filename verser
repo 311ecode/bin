@@ -138,12 +138,17 @@ function printHelp() {
   console.log('  -r, --range <input_file> <range1> [<range2> ...] Extract specific verse ranges');
   console.log('  -o, --output [<output_file>]                Specify output file (optional)');
   console.log('  --review                                    Review changes without modifying files (used with -r)');
+  console.log('  -or, --origin <file>                        Specify the original file for translation');
+  console.log('  -d, --direction-file <file>                 Specify direction file(s) for translation');
+  console.log('  -m, --model <model>                         Specify the model for translation (default: gemma2:27b)');
+  console.log('  -mi, --max-input-chunk <number>             Specify max length of input chunk for translation');
   console.log('\nExamples:');
   console.log('  node verser.js input.txt                    Process a single file');
   console.log('  node verser.js -c file1.verses file2.verses Concatenate verse files');
   console.log('  node verser.js -tv input.txt                Convert to verse format');
   console.log('  node verser.js -fv input.verses             Convert from verse format');
   console.log('  node verser.js -r input.verses 1-10 22-33   Extract verses 1-10 and 22-33');
+  console.log('  node verser.js -or original.txt -o output.verses -d direction.txt -m gemma2:27b -mi 1000');
   console.log('\nOutput behavior:');
   console.log('  - Without -o: Output goes to stdout');
   console.log('  - With -o but no filename:');
@@ -160,6 +165,7 @@ function printHelp() {
 }
 
 
+
 function parseArguments(args) {
   let params = {
     concat: [],
@@ -168,53 +174,102 @@ function parseArguments(args) {
     toVerse: false,
     fromVerse: false,
     ranges: [],
-    review: false
+    review: false,
+    origin: null,
+    directionFiles: [],
+    model: 'gemma2:27b',
+    maxInputChunk: 1000
   };
   
   const mustHaveOutput = ['-fv', '--from-verse', '-tv', '--to-verse'];
   
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '-c' || args[i] === '--concat') {
-      i++;
-      while (i < args.length && !args[i].startsWith('-')) {
-        params.concat.push(args[i]);
-        i++;
-      }
-      i--; // Step back to process the next flag
-    } else if (args[i] === '-o' || args[i] === '--output') {
-      i++;
-      if (i < args.length && !args[i].startsWith('-')) {
-        params.output = resolve(args[i]);
-      } else {
-        params.output = 'default'; // Flag that we need a default output
-      }
-    } else if (args[i] === '-tv' || args[i] === '--to-verse') {
-      params.toVerse = true;
-      i++;
-      if (i < args.length && !args[i].startsWith('-')) {
-        params.input = args[i];
-      }
-    } else if (args[i] === '-fv' || args[i] === '--from-verse') {
-      params.fromVerse = true;
-      i++;
-      if (i < args.length && !args[i].startsWith('-')) {
-        params.input = args[i];
-      }
-    } else if (args[i] === '-r' || args[i] === '--range') {
-      i++;
-      if (i < args.length && !args[i].startsWith('-')) {
-        params.input = args[i];
+    switch (args[i]) {
+      case '-c':
+      case '--concat':
         i++;
         while (i < args.length && !args[i].startsWith('-')) {
-          params.ranges.push(parseRange(args[i]));
+          params.concat.push(args[i]);
           i++;
         }
         i--; // Step back to process the next flag
-      }
-    } else if (args[i] === '--review' || args[i] === '-re') {
-      params.review = true;
-    } else if (!args[i].startsWith('-') && !params.input) {
-      params.input = args[i];
+        break;
+      case '-o':
+      case '--output':
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.output = resolve(args[i]);
+        } else {
+          params.output = 'default'; // Flag that we need a default output
+        }
+        break;
+      case '-tv':
+      case '--to-verse':
+        params.toVerse = true;
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.input = args[i];
+        }
+        break;
+      case '-fv':
+      case '--from-verse':
+        params.fromVerse = true;
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.input = args[i];
+        }
+        break;
+      case '-r':
+      case '--range':
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.input = args[i];
+          i++;
+          while (i < args.length && !args[i].startsWith('-')) {
+            params.ranges.push(parseRange(args[i]));
+            i++;
+          }
+          i--; // Step back to process the next flag
+        }
+        break;
+      case '--review':
+      case '-re':
+        params.review = true;
+        break;
+      case '-or':
+      case '--origin':
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.origin = args[i];
+        }
+        break;
+      case '-d':
+      case '--direction-file':
+        i++;
+        while (i < args.length && !args[i].startsWith('-')) {
+          params.directionFiles.push(args[i]);
+          i++;
+        }
+        i--; // Step back to process the next flag
+        break;
+      case '-m':
+      case '--model':
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.model = args[i];
+        }
+        break;
+      case '-mi':
+      case '--max-input-chunk':
+        i++;
+        if (i < args.length && !args[i].startsWith('-')) {
+          params.maxInputChunk = parseInt(args[i]);
+        }
+        break;
+      default:
+        if (!args[i].startsWith('-') && !params.input) {
+          params.input = args[i];
+        }
     }
   }
   
@@ -320,7 +375,98 @@ function processRanges(params) {
   }
 }
 
-function processFiles(args) {
+function getMaxLineNumber(filePath) {
+  if (!existsSync(filePath)) return 0;
+  const content = readFileSync(filePath, 'utf8');
+  const lines = content.split('\n');
+  let maxLineNumber = 0;
+  for (const line of lines) {
+    const match = line.match(/^\|(\d+)\.\|/);
+    if (match) {
+      const lineNumber = parseInt(match[1]);
+      if (lineNumber > maxLineNumber) {
+        maxLineNumber = lineNumber;
+      }
+    }
+  }
+  return maxLineNumber;
+}
+
+async function processTranslation(params) {
+  if (!params.origin || !params.output || params.directionFiles.length === 0) {
+    console.log('Please provide origin file, output file, and at least one direction file.');
+    return;
+  }
+
+  const originalContent = readFileSync(params.origin, 'utf8');
+  const originalLines = originalContent.split('\n');
+  
+  const maxOrigLine = getMaxLineNumber(params.output);
+  const maxDestLine = getMaxLineNumber(params.output);
+  const startLine = Math.max(maxOrigLine, maxDestLine) + 1;
+
+  let directions = '';
+  for (const dirFile of params.directionFiles) {
+    directions += readFileSync(dirFile, 'utf8') + '\n';
+  }
+
+  let currentLine = startLine;
+  let translatedContent = '';
+
+  while (currentLine <= originalLines.length) {
+    let chunk = '';
+    let chunkSize = 0;
+    let endLine = currentLine;
+
+    while (endLine <= originalLines.length && chunkSize < params.maxInputChunk) {
+      const line = originalLines[endLine - 1];
+      if (chunkSize + line.length + directions.length > params.maxInputChunk) {
+        if (chunk.endsWith('|---\n')) {
+          break;
+        }
+      }
+      chunk += line + '\n';
+      chunkSize += line.length + 1;
+      endLine++;
+      if (line.endsWith('|---')) {
+        break;
+      }
+    }
+
+    const prompt = directions + chunk;
+    const translatedChunk = await chatWithOllama(params.model, prompt);
+
+    translatedContent += translatedChunk + '\n';
+    currentLine = endLine;
+  }
+
+  if (params.output === 'stdout') {
+    console.log(translatedContent);
+  } else {
+    let finalContent = translatedContent;
+    if (existsSync(params.output)) {
+      const existingContent = readFileSync(params.output, 'utf8');
+      finalContent = mergeVerses(existingContent, parseVerses(translatedContent));
+    }
+    writeOutput(finalContent, params.output);
+  }
+}
+
+function parseVerses(content) {
+  const lines = content.split('\n');
+  const verses = {};
+  lines.forEach(line => {
+    const match = line.match(/^\|(\d+)\.\|/);
+    if (match) {
+      const verseNumber = parseInt(match[1]);
+      verses[verseNumber] = line;
+    }
+  });
+  return verses;
+}
+
+
+async function processFiles(args) {
   let params = parseArguments(args);
 
   if (params.ranges.length > 0) {
@@ -336,6 +482,8 @@ function processFiles(args) {
     let content = readFileSync(params.input, 'utf8');
     let result = convertFromVerse(content);
     writeOutput(result, params.output);
+  } else if (params.origin && params.directionFiles.length > 0) {
+    await processTranslation(params);
   } else if (params.input) {
     let result = processFile(params.input);
     writeOutput(result, params.output);
