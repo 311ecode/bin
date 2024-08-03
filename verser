@@ -157,8 +157,12 @@ function parseArguments(args) {
     output: null,
     input: null,
     toVerse: false,
-    fromVerse: false
+    fromVerse: false,
+    ranges: [],
+    review: false
   };
+  
+  const mustHaveOutput = ['-fv', '--from-verse', '-tv', '--to-verse'];
   
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-c' || args[i] === '--concat') {
@@ -187,6 +191,19 @@ function parseArguments(args) {
       if (i < args.length && !args[i].startsWith('-')) {
         params.input = args[i];
       }
+    } else if (args[i] === '-r' || args[i] === '--range') {
+      i++;
+      if (i < args.length && !args[i].startsWith('-')) {
+        params.input = args[i];
+        i++;
+        while (i < args.length && !args[i].startsWith('-')) {
+          params.ranges.push(parseRange(args[i]));
+          i++;
+        }
+        i--; // Step back to process the next flag
+      }
+    } else if (args[i] === '--review' || args[i] === '-re') {
+      params.review = true;
     } else if (!args[i].startsWith('-') && !params.input) {
       params.input = args[i];
     }
@@ -211,15 +228,88 @@ function writeOutput(content, outputPath) {
   if (outputPath === 'stdout') {
     console.log(content);
   } else if (outputPath) {
+    // Ensure the directory exists
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    // Write the content to the file
     fs.writeFileSync(outputPath, content);
     console.log(`Output written to: ${outputPath}`);
+  }
+}
+
+function parseRange(range) {
+  const [start, end] = range.split('-').map(Number);
+  return { start, end };
+}
+
+function extractVerseRanges(content, ranges) {
+  const lines = content.split('\n');
+  const extractedVerses = {};
+
+  ranges.forEach(range => {
+    for (let i = range.start; i <= range.end; i++) {
+      const verseLine = lines.find(line => line.startsWith(`|${i}.|`));
+      if (verseLine) {
+        extractedVerses[i] = verseLine;
+      }
+    }
+  });
+
+  return extractedVerses;
+}
+
+function mergeVerses(existingContent, newVerses) {
+  const existingLines = existingContent.split('\n');
+  const mergedVerses = {};
+
+  existingLines.forEach(line => {
+    const match = line.match(/^\|(\d+)\.\|/);
+    if (match) {
+      const verseNumber = parseInt(match[1]);
+      mergedVerses[verseNumber] = line;
+    }
+  });
+
+  Object.assign(mergedVerses, newVerses);
+
+  return Object.entries(mergedVerses)
+    .sort(([a], [b]) => parseInt(a) - parseInt(b))
+    .map(([_, line]) => line)
+    .join('\n');
+}
+
+function processRanges(params) {
+  if (!params.input || params.ranges.length === 0) {
+    console.log('Please provide an input file and at least one range.');
+    return;
+  }
+
+  const content = fs.readFileSync(params.input, 'utf8');
+  const extractedVerses = extractVerseRanges(content, params.ranges);
+
+  if (params.review) {
+    console.log('Review of extracted verses:');
+    console.log(Object.values(extractedVerses).join('\n'));
+  } else if (params.output && params.output !== 'stdout') {
+    let outputContent = Object.values(extractedVerses).join('\n');
+    if (fs.existsSync(params.output)) {
+      const existingContent = fs.readFileSync(params.output, 'utf8');
+      outputContent = mergeVerses(existingContent, extractedVerses);
+    }
+    writeOutput(outputContent, params.output);
+  } else {
+    console.log(Object.values(extractedVerses).join('\n'));
   }
 }
 
 function processFiles(args) {
   let params = parseArguments(args);
 
-  if (params.concat.length >= 2) {
+  if (params.ranges.length > 0) {
+    processRanges(params);
+  } else if (params.concat.length >= 2) {
     let concatenated = concatenateVerses(params.concat);
     writeOutput(concatenated, params.output);
   } else if (params.toVerse && params.input) {
@@ -237,6 +327,7 @@ function processFiles(args) {
     printHelp();
   }
 }
+
 // Check if arguments are provided
 if (process.argv.length < 3) {
   console.log('Please provide file path(s) as argument(s).');
