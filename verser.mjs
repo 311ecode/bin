@@ -433,40 +433,44 @@ async function processTranslation(params) {
     let chunk = '';
     let chunkSize = 0;
     let endLine = startLine;
-    let substantiveContent = false;
+    let sectionCount = 0;
 
     while (endLine <= maxOrig && chunkSize < params.maxInputChunk) {
+      console.log(`chunkSize: ${chunkSize}, maxInputChunk: ${params.maxInputChunk}`);
+      
       const line = originalLines[endLine - 1];
       
-      // Skip separator lines, but include them in the chunk
-      if (line.trim().endsWith('|---')) {
-        chunk += line + '\n';
-        endLine++;
-        continue;
-      }
-
+      // Check if adding this line would exceed the max input chunk size
       if (chunkSize + line.length + directions.length > params.maxInputChunk) {
-        if (substantiveContent) {
-          break;
-        }
+        break;
       }
       
       chunk += line + '\n';
       chunkSize += line.length + 1;
       endLine++;
-      substantiveContent = true;
-
-      if (line.trim().endsWith('|---') && substantiveContent) {
-        break;
+      
+      if (line.trim().endsWith('|---')) {
+        sectionCount++;
       }
+    }
+
+    // Adjust the chunk to end with a '|---' line if possible
+    let lastSeparatorIndex = chunk.lastIndexOf('|---');
+    if (lastSeparatorIndex !== -1 && lastSeparatorIndex !== chunk.length - 5) {
+      // Find the start of the line containing '|---'
+      let lineStart = chunk.lastIndexOf('\n', lastSeparatorIndex) + 1;
+      chunk = chunk.substring(0, lineStart);
+      endLine = startLine + chunk.split('\n').length - 1;
     }
 
     console.log(`Chunk size: ${chunkSize} characters`);
     console.log(`Lines in this chunk: ${startLine} to ${endLine - 1}`);
+    console.log(`Sections in this chunk: ${sectionCount}`);
     console.log('Content preview:');
     console.log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
 
-    if (!substantiveContent) {
+    // Check if the chunk has any content other than separator lines
+    if (chunk.replace(/\|\d+\.\|---\n/g, '').trim() === '') {
       console.log('Skipping chunk as it contains no substantive content to translate.');
       startLine = endLine;
       continue;
@@ -478,27 +482,31 @@ async function processTranslation(params) {
     console.log('Received translated chunk from model');
 
     translatedContent += translatedChunk + '\n';
+    
+    // Write the translated content to the output file after each chunk
+    if (params.output !== 'stdout') {
+      console.log('Writing translated chunk to output file...');
+      let finalContent = translatedContent;
+      if (existsSync(params.output)) {
+        const existingContent = readFileSync(params.output, 'utf8');
+        finalContent = mergeVerses(existingContent, parseVerses(translatedContent));
+      }
+      writeOutput(finalContent, params.output);
+      console.log('Chunk written to output file');
+    }
+
     startLine = endLine;
 
     console.log(`Translated up to line ${startLine - 1} of ${maxOrig}`);
     console.log(`Progress: ${((startLine - 1) / maxOrig * 100).toFixed(2)}%`);
   }
 
-  console.log('\nTranslation process completed');
-
+  // Final output for stdout option
   if (params.output === 'stdout') {
-    console.log('Outputting translation to stdout:');
+    console.log('Outputting complete translation to stdout:');
     console.log(translatedContent);
   } else {
-    console.log(`Writing translation to file: ${params.output}`);
-    let finalContent = translatedContent;
-    if (existsSync(params.output)) {
-      console.log('Existing output file found. Merging new translations...');
-      const existingContent = readFileSync(params.output, 'utf8');
-      finalContent = mergeVerses(existingContent, parseVerses(translatedContent));
-    }
-    writeOutput(finalContent, params.output);
-    console.log('Translation successfully written to output file');
+    console.log('Translation process completed. All chunks have been written to the output file.');
   }
 }
 
