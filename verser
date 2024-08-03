@@ -1,7 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --no-warnings
 
-const fs = require('fs');
-const path = require('path');
+import { argv } from 'process';
+
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { basename, resolve, dirname } from 'path';
 
 // converts a text to verse format
 function convertToVerse(text) {
@@ -56,12 +58,12 @@ function convertFromVerse(text) {
 }
 
 function mapVersesToArray(filePaths) {
-  let versionNames = filePaths.map(filePath => path.basename(filePath, '.verses').replace('.md', ''));
+  let versionNames = filePaths.map(filePath => basename(filePath, '.verses').replace('.md', ''));
   let allVerses = [];
 
   filePaths.forEach((filePath, index) => {
     try {
-      let content = fs.readFileSync(filePath, 'utf8').split('\n');
+      let content = readFileSync(filePath, 'utf8').split('\n');
       content.forEach(line => {
         let match = line.match(/^\|(\d+)\.\|\s*(.*)/);
         if (match) {
@@ -182,7 +184,7 @@ function parseArguments(args) {
     } else if (args[i] === '-o' || args[i] === '--output') {
       i++;
       if (i < args.length && !args[i].startsWith('-')) {
-        params.output = path.resolve(args[i]);
+        params.output = resolve(args[i]);
       } else {
         params.output = 'default'; // Flag that we need a default output
       }
@@ -224,7 +226,7 @@ function parseArguments(args) {
     } else if (params.output === 'default' && params.input) {
       // -o specified without filename
       let ext = params.toVerse ? '.verse' : '.txt';
-      params.output = path.resolve(params.input + ext);
+      params.output = resolve(params.input + ext);
     }
   }
   
@@ -236,12 +238,12 @@ function writeOutput(content, outputPath) {
     console.log(content);
   } else if (outputPath) {
     // Ensure the directory exists
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    const outputDir = dirname(outputPath);
+    if (!existsSync(outputDir)) {
+      mkdirSync(outputDir, { recursive: true });
     }
     // Write the content to the file
-    fs.writeFileSync(outputPath, content);
+    writeFileSync(outputPath, content);
     console.log(`Output written to: ${outputPath}`);
   }
 }
@@ -293,13 +295,13 @@ function processRanges(params) {
     return;
   }
 
-  const content = fs.readFileSync(params.input, 'utf8');
+  const content = readFileSync(params.input, 'utf8');
   const extractedVerses = extractVerseRanges(content, params.ranges);
 
   if (params.review) {
     let reviewContent = '';
-    if (params.output && params.output !== 'stdout' && fs.existsSync(params.output)) {
-      const existingContent = fs.readFileSync(params.output, 'utf8');
+    if (params.output && params.output !== 'stdout' && existsSync(params.output)) {
+      const existingContent = readFileSync(params.output, 'utf8');
       reviewContent = mergeVerses(existingContent, extractedVerses);
     } else {
       reviewContent = Object.values(extractedVerses).join('\n');
@@ -308,8 +310,8 @@ function processRanges(params) {
     console.log(reviewContent);
   } else if (params.output && params.output !== 'stdout') {
     let outputContent = Object.values(extractedVerses).join('\n');
-    if (fs.existsSync(params.output)) {
-      const existingContent = fs.readFileSync(params.output, 'utf8');
+    if (existsSync(params.output)) {
+      const existingContent = readFileSync(params.output, 'utf8');
       outputContent = mergeVerses(existingContent, extractedVerses);
     }
     writeOutput(outputContent, params.output);
@@ -327,11 +329,11 @@ function processFiles(args) {
     let concatenated = concatenateVerses(params.concat);
     writeOutput(concatenated, params.output);
   } else if (params.toVerse && params.input) {
-    let content = fs.readFileSync(params.input, 'utf8');
+    let content = readFileSync(params.input, 'utf8');
     let result = convertToVerse(content);
     writeOutput(result, params.output);
   } else if (params.fromVerse && params.input) {
-    let content = fs.readFileSync(params.input, 'utf8');
+    let content = readFileSync(params.input, 'utf8');
     let result = convertFromVerse(content);
     writeOutput(result, params.output);
   } else if (params.input) {
@@ -343,9 +345,9 @@ function processFiles(args) {
 }
 
 // Check if arguments are provided
-if (process.argv.length < 3) {
+if (argv.length < 3) {
   console.log('Please provide file path(s) as argument(s).');
 } else {
-  processFiles(process.argv.slice(2));
+  processFiles(argv.slice(2));
 }
 

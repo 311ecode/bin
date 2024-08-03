@@ -1,0 +1,14 @@
+#!/bin/env bash
+
+# save the cwd  
+cwd=$(pwd)
+
+# change to the directory of the script
+cd $(dirname $0)
+
+source ~/.bashrc
+
+tclo chatter.mjs verser 
+
+# restore the cwd
+cd $cwd
