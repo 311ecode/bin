@@ -5,6 +5,9 @@ import { argv } from 'process';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { basename, resolve, dirname } from 'path';
 
+import { chatWithOllama } from './chatter.mjs';
+
+
 // converts a text to verse format
 function convertToVerse(text) {
   let paragraphs = text.split('\n');
@@ -398,27 +401,40 @@ async function processTranslation(params) {
     return;
   }
 
+  console.log('Starting translation process...');
+  console.log(`Origin file: ${params.origin}`);
+  console.log(`Output file: ${params.output}`);
+  console.log(`Model: ${params.model}`);
+  console.log(`Max input chunk: ${params.maxInputChunk} characters`);
+
   const originalContent = readFileSync(params.origin, 'utf8');
   const originalLines = originalContent.split('\n');
   
-  const maxOrigLine = getMaxLineNumber(params.output);
+  const maxOrig = getMaxLineNumber(params.origin);
   const maxDestLine = getMaxLineNumber(params.output);
-  const startLine = Math.max(maxOrigLine, maxDestLine) + 1;
+  let startLine = Math.max(maxDestLine, 1);
+
+  console.log(`Max line number in original file: ${maxOrig}`);
+  console.log(`Starting translation from line: ${startLine}`);
 
   let directions = '';
   for (const dirFile of params.directionFiles) {
     directions += readFileSync(dirFile, 'utf8') + '\n';
+    console.log(`Loaded direction file: ${dirFile}`);
   }
 
-  let currentLine = startLine;
   let translatedContent = '';
+  let chunkCount = 0;
 
-  while (currentLine <= originalLines.length) {
+  while (startLine <= maxOrig) {
+    chunkCount++;
+    console.log(`\nProcessing chunk #${chunkCount}`);
+    
     let chunk = '';
     let chunkSize = 0;
-    let endLine = currentLine;
+    let endLine = startLine;
 
-    while (endLine <= originalLines.length && chunkSize < params.maxInputChunk) {
+    while (endLine <= maxOrig && chunkSize < params.maxInputChunk) {
       const line = originalLines[endLine - 1];
       if (chunkSize + line.length + directions.length > params.maxInputChunk) {
         if (chunk.endsWith('|---\n')) {
@@ -433,22 +449,36 @@ async function processTranslation(params) {
       }
     }
 
+    console.log(`Chunk size: ${chunkSize} characters`);
+    console.log(`Lines in this chunk: ${startLine} to ${endLine - 1}`);
+
     const prompt = directions + chunk;
+    console.log('Sending chunk to translation model...');
     const translatedChunk = await chatWithOllama(params.model, prompt);
+    console.log('Received translated chunk from model');
 
     translatedContent += translatedChunk + '\n';
-    currentLine = endLine;
+    startLine = endLine;
+
+    console.log(`Translated up to line ${startLine - 1} of ${maxOrig}`);
+    console.log(`Progress: ${((startLine - 1) / maxOrig * 100).toFixed(2)}%`);
   }
 
+  console.log('\nTranslation process completed');
+
   if (params.output === 'stdout') {
+    console.log('Outputting translation to stdout:');
     console.log(translatedContent);
   } else {
+    console.log(`Writing translation to file: ${params.output}`);
     let finalContent = translatedContent;
     if (existsSync(params.output)) {
+      console.log('Existing output file found. Merging new translations...');
       const existingContent = readFileSync(params.output, 'utf8');
       finalContent = mergeVerses(existingContent, parseVerses(translatedContent));
     }
     writeOutput(finalContent, params.output);
+    console.log('Translation successfully written to output file');
   }
 }
 
