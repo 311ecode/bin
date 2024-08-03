@@ -126,32 +126,121 @@ function concatenateVerses(filePaths) {
 
   return result.trim();
 }
-function processFiles(args) {
-  let concatIndex = args.indexOf('-c');
-  if (concatIndex === -1) concatIndex = args.indexOf('--concat');
 
-  if (concatIndex !== -1) {
-    let filePaths = args.slice(concatIndex + 1);
-    if (filePaths.length >= 2) {
-      let concatenated = concatenateVerses(filePaths);
-      let outputPath = 'concatenated_verses.txt';
-      fs.writeFileSync(outputPath, concatenated);
-      console.log(`Concatenated verses saved as: ${outputPath}`);
-    } else {
-      console.log('Please provide at least two file paths for concatenation.');
+function printHelp() {
+  console.log('Usage: node script.js [options] <input_file>');
+  console.log('\nOptions:');
+  console.log('  -c, --concat <file1> <file2> [<file3> ...]  Concatenate multiple verse files');
+  console.log('  -tv, --to-verse <input_file>                Convert text to verse format');
+  console.log('  -fv, --from-verse <input_file>              Convert verse to plain text');
+  console.log('  -o, --output [<output_file>]                Specify output file (optional)');
+  console.log('\nExamples:');
+  console.log('  node script.js input.txt                    Process a single file');
+  console.log('  node script.js -c file1.verses file2.verses Concatenate verse files');
+  console.log('  node script.js -tv input.txt                Convert to verse format');
+  console.log('  node script.js -fv input.verses             Convert from verse format');
+  console.log('\nOutput behavior:');
+  console.log('  - Without -o: Output goes to stdout');
+  console.log('  - With -o but no filename:');
+  console.log('    * For -tv: Creates <input_file>.verse');
+  console.log('    * For -fv: Creates <input_file>.txt');
+  console.log('    * For others: Output goes to stdout');
+  console.log('  - With -o and filename: Output goes to specified file');
+  console.log('\nNote: -tv and -fv require an output (either to file or stdout)');
+}
+
+const mustHaveOutput = ['-fv', '--from-verse', '-tv', '--to-verse'];
+
+function parseArguments(args) {
+  let params = {
+    concat: [],
+    output: null,
+    input: null,
+    toVerse: false,
+    fromVerse: false
+  };
+  
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '-c' || args[i] === '--concat') {
+      i++;
+      while (i < args.length && !args[i].startsWith('-')) {
+        params.concat.push(args[i]);
+        i++;
+      }
+      i--; // Step back to process the next flag
+    } else if (args[i] === '-o' || args[i] === '--output') {
+      i++;
+      if (i < args.length && !args[i].startsWith('-')) {
+        params.output = path.resolve(args[i]);
+      } else {
+        params.output = 'default'; // Flag that we need a default output
+      }
+    } else if (args[i] === '-tv' || args[i] === '--to-verse') {
+      params.toVerse = true;
+      i++;
+      if (i < args.length && !args[i].startsWith('-')) {
+        params.input = args[i];
+      }
+    } else if (args[i] === '-fv' || args[i] === '--from-verse') {
+      params.fromVerse = true;
+      i++;
+      if (i < args.length && !args[i].startsWith('-')) {
+        params.input = args[i];
+      }
+    } else if (!args[i].startsWith('-') && !params.input) {
+      params.input = args[i];
     }
-  } else if (args.length === 1) {
-    processFile(args[0]);
-  } else {
-    console.log('Please provide correct arguments:');
-    console.log('- For single file conversion: node script.js <filename>');
-    console.log('- For concatenation: node script.js -c <file1> <file2> [<file3> ...]');
+  }
+  
+  // Handle default output for -tv and -fv
+  if (mustHaveOutput.includes(args[0]) || mustHaveOutput.includes(args[1])) {
+    if (params.output === null && params.input) {
+      // No -o specified, use stdout
+      params.output = 'stdout';
+    } else if (params.output === 'default' && params.input) {
+      // -o specified without filename
+      let ext = params.toVerse ? '.verse' : '.txt';
+      params.output = path.resolve(params.input + ext);
+    }
+  }
+  
+  return params;
+}
+
+function writeOutput(content, outputPath) {
+  if (outputPath === 'stdout') {
+    console.log(content);
+  } else if (outputPath) {
+    fs.writeFileSync(outputPath, content);
+    console.log(`Output written to: ${outputPath}`);
   }
 }
 
+function processFiles(args) {
+  let params = parseArguments(args);
+
+  if (params.concat.length >= 2) {
+    let concatenated = concatenateVerses(params.concat);
+    writeOutput(concatenated, params.output);
+  } else if (params.toVerse && params.input) {
+    let content = fs.readFileSync(params.input, 'utf8');
+    let result = convertToVerse(content);
+    writeOutput(result, params.output);
+  } else if (params.fromVerse && params.input) {
+    let content = fs.readFileSync(params.input, 'utf8');
+    let result = convertFromVerse(content);
+    writeOutput(result, params.output);
+  } else if (params.input) {
+    let result = processFile(params.input);
+    writeOutput(result, params.output);
+  } else {
+    printHelp();
+  }
+}
 // Check if arguments are provided
 if (process.argv.length < 3) {
   console.log('Please provide file path(s) as argument(s).');
 } else {
   processFiles(process.argv.slice(2));
 }
+
