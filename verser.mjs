@@ -433,24 +433,44 @@ async function processTranslation(params) {
     let chunk = '';
     let chunkSize = 0;
     let endLine = startLine;
+    let substantiveContent = false;
 
     while (endLine <= maxOrig && chunkSize < params.maxInputChunk) {
       const line = originalLines[endLine - 1];
+      
+      // Skip separator lines, but include them in the chunk
+      if (line.trim().endsWith('|---')) {
+        chunk += line + '\n';
+        endLine++;
+        continue;
+      }
+
       if (chunkSize + line.length + directions.length > params.maxInputChunk) {
-        if (chunk.endsWith('|---\n')) {
+        if (substantiveContent) {
           break;
         }
       }
+      
       chunk += line + '\n';
       chunkSize += line.length + 1;
       endLine++;
-      if (line.endsWith('|---')) {
+      substantiveContent = true;
+
+      if (line.trim().endsWith('|---') && substantiveContent) {
         break;
       }
     }
 
     console.log(`Chunk size: ${chunkSize} characters`);
     console.log(`Lines in this chunk: ${startLine} to ${endLine - 1}`);
+    console.log('Content preview:');
+    console.log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
+
+    if (!substantiveContent) {
+      console.log('Skipping chunk as it contains no substantive content to translate.');
+      startLine = endLine;
+      continue;
+    }
 
     const prompt = directions + chunk;
     console.log('Sending chunk to translation model...');
