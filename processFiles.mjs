@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
-import { concatenateVerses } from "./concatenateVerses.mjs";
-import { convertFromVerse } from "./convertFromVerse.mjs";
-import { convertToVerse } from "./convertToVerse.mjs";
+import { concatenateVerses } from "./lib/verseManipulation/concatenateVerses.mjs";
+import { convertFromVerse } from "./lib/verseManipulation/convertFromVerse.mjs";
+import { convertToVerse } from "./lib/verseManipulation/convertToVerse.mjs";
 import { parseArguments } from "./parseArguments.mjs";
 import { printHelp } from "./printHelp.mjs";
 import { processRanges } from "./processRanges.mjs";
@@ -27,7 +27,7 @@ export async function processFiles(args) {
   } else if (params.origin && params.directionFiles.length > 0) {
     await processTranslation(params);
   } else if (params.input) {
-    let result = processFile(params.input);
+    let result = processFiles(params.input);
     writeOutput(result, params.output);
   } else {
     printHelp();

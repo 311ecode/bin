@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+      "module": "esnext",
+      "checkJs": true
+  },
+  "include": [
+      "**/*.mjs"
+  ]
+}

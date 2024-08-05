@@ -48,6 +48,7 @@ export function mergeVerses(existingContent, newVerses) {
 
   return Object.entries(mergedVerses)
     .sort(([a], [b]) => parseInt(a) - parseInt(b))
+    // eslint-disable-next-line
     .map(([_, line]) => line)
     .join('\n');
 }
