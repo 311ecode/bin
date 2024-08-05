@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "fs";
 import { chatWithOllama } from "./drivers/ollama.mjs";
 import { writeOutput } from "../verser.mjs";
-import { mergeVerses } from "../processRanges.mjs";
+import { mergeVerses } from "../lib/range/processRanges.mjs"; 
 import { logger } from "../lib/logger.mjs";
 
 const log = logger()();
