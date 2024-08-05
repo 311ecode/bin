@@ -8,7 +8,7 @@ cd $(dirname $0)
 
 source ~/.bashrc
 
-tclo chatter.mjs verser 
+tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.js translation.mjs lib 
 
 # restore the cwd
 cd $cwd

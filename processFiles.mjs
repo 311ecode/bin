@@ -2,9 +2,9 @@ import { readFileSync } from "fs";
 import { concatenateVerses } from "./lib/verseManipulation/concatenateVerses.mjs";
 import { convertFromVerse } from "./lib/verseManipulation/convertFromVerse.mjs";
 import { convertToVerse } from "./lib/verseManipulation/convertToVerse.mjs";
-import { parseArguments } from "./parseArguments.mjs";
+import { parseArguments } from "./lib/parseArguments.mjs"; 
 import { printHelp } from "./printHelp.mjs";
-import { processRanges } from "./processRanges.mjs";
+import { processRanges } from "./lib/range/processRanges.mjs"; 
 import { processTranslation } from "./translation/processTranslation.mjs";
 import { writeOutput } from "./verser.mjs";
 

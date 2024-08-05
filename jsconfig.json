@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-      "module": "esnext",
-      "checkJs": true
+      "module": "nodenext",
+      "checkJs": true,
+      "moduleResolution": "nodenext"
   },
   "include": [
       "**/*.mjs"

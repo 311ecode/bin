@@ -1,4 +1,5 @@
 import pluginJs from "@eslint/js";
+import pluginJest from "eslint-plugin-jest";
 
 export default [
   {
@@ -18,6 +19,14 @@ export default [
         setInterval: "readonly",
         clearInterval: "readonly",
       },
+      ecmaVersion: 2021,
+      sourceType: "module",
     },
-  }
+    plugins: {
+      jest: pluginJest,
+    },
+    rules: {
+      ...pluginJest.configs.recommended.rules,
+    },
+  },
 ];
