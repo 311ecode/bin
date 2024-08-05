@@ -1,0 +1,34 @@
+export function printHelp() {
+  console.log('Usage: node verser.js [options] <input_file>');
+  console.log('\nOptions:');
+  console.log('  -c, --concat <file1> <file2> [<file3> ...]  Concatenate multiple verse files');
+  console.log('  -tv, --to-verse <input_file>                Convert text to verse format');
+  console.log('  -fv, --from-verse <input_file>              Convert verse to plain text');
+  console.log('  -r, --range <input_file> <range1> [<range2> ...] Extract specific verse ranges');
+  console.log('  -o, --output [<output_file>]                Specify output file (optional)');
+  console.log('  --review                                    Review changes without modifying files (used with -r)');
+  console.log('  -or, --origin <file>                        Specify the original file for translation');
+  console.log('  -d, --direction-file <file>                 Specify direction file(s) for translation');
+  console.log('  -m, --model <model>                         Specify the model for translation (default: gemma2:27b)');
+  console.log('  -mi, --max-input-chunk <number>             Specify max length of input chunk for translation');
+  console.log('\nExamples:');
+  console.log('  node verser.js input.txt                    Process a single file');
+  console.log('  node verser.js -c file1.verses file2.verses Concatenate verse files');
+  console.log('  node verser.js -tv input.txt                Convert to verse format');
+  console.log('  node verser.js -fv input.verses             Convert from verse format');
+  console.log('  node verser.js -r input.verses 1-10 22-33   Extract verses 1-10 and 22-33');
+  console.log('  node verser.js -or original.txt -o output.verses -d direction.txt -m gemma2:27b -mi 1000');
+  console.log('\nOutput behavior:');
+  console.log('  - Without -o: Output goes to stdout');
+  console.log('  - With -o but no filename:');
+  console.log('    * For -tv: Creates <input_file>.verse');
+  console.log('    * For -fv: Creates <input_file>.txt');
+  console.log('    * For others: Output goes to stdout');
+  console.log('  - With -o and filename: Output goes to specified file');
+  console.log('\nReview option:');
+  console.log('  When used with -r, --review shows the result of applying the range');
+  console.log('  to the existing output file (if specified and exists) or');
+  console.log('  displays the extracted verses without modifying any files.');
+  console.log('\nNote: -tv and -fv require an output (either to file or stdout)');
+  console.log('      --review is currently only applicable with the -r option');
+}
