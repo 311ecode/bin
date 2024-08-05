@@ -1,5 +1,6 @@
 export default {
-  transform: {},
-  moduleFileExtensions: ['js', 'mjs'],
-  testEnvironment: 'node',
-};
+    transform: {},
+    // extensionsToTreatAsEsm: ['.mjs'],
+    moduleFileExtensions: ['js', 'mjs'],
+    testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)', '**/?(*.)+(spec|test).mjs'],
+  };

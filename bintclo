@@ -1,14 +1,9 @@
-#!/bin/env bash
+bintclo() {
+  # save the cwd  
+  cwd=$(pwd)
 
-# save the cwd  
-cwd=$(pwd)
+  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation/ lib/
 
-# change to the directory of the script
-cd $(dirname $0)
-
-source ~/.bashrc
-
-tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation/ lib/
-
-# restore the cwd
-cd $cwd
+  # restore the cwd
+  cd $cwd
+}
