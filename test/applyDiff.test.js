@@ -1,4 +1,3 @@
-// diffUtils.test.mjs
 import { applyDiff } from '../lib/range/processRanges.mjs';
 
 describe('applyDiff', () => {
