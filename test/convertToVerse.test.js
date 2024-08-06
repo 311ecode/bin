@@ -22,26 +22,26 @@ and here more. amore.
 `;
   
     const expectedOutput = 
-`|0.| hello
-|1.| ---
+`|1.| hello
 |2.| ---
 |3.| ---
 |4.| ---
-|5.| word.
-|6.| New sentence, new line.
-|7.| ---
-|8.| ahh and before we had a line break.
-|9.| and
-|10.| ---
-|11.| now two we had.
-|12.| ---
+|5.| ---
+|6.| word.
+|7.| New sentence, new line.
+|8.| ---
+|9.| ahh and before we had a line break.
+|10.| and
+|11.| ---
+|12.| now two we had.
 |13.| ---
 |14.| ---
 |15.| ---
 |16.| ---
-|17.| and here more.
-|18.| amore.
-|19.| ---`;
+|17.| ---
+|18.| and here more.
+|19.| amore.
+|20.| ---`;
 
     expect(convertToVerse(input)).toBe(expectedOutput);
   });
