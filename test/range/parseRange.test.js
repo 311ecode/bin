@@ -1,4 +1,4 @@
-import { parseRange } from '../lib/range/parseRange.mjs';
+import { parseRange } from '../../lib/range/parseRange.mjs';
 
 describe('parseRange', () => {
   test('aaaa parses a simple range correctly', () => {
