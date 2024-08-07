@@ -1,0 +1,106 @@
+import { concatenateVerses } from '../lib/verseManipulation/concatenateVerses.mjs';
+import { readFileSync } from 'fs';
+import { jest } from '@jest/globals';
+
+// Mock the readFileSync function
+jest.mock('fs', () => ({
+  readFileSync: jest.fn()
+}));
+
+describe('concatenateVerses', () => {
+  beforeEach(() => {
+    // Clear all mocks before each test
+    jest.clearAllMocks();
+  });
+
+  test('concatenates verses from multiple files correctly', () => {
+    // Mock file contents
+    const file1Content = `
+|1.| This is verse 1 from file 1
+|2.| This is verse 2 from file 1
+|3.| ---
+`;
+    const file2Content = `
+|1.| This is verse 1 from file 2
+|2.| This is verse 2 from file 2
+|3.| ---
+`;
+
+    // Set up the mock to return different content for different file paths
+    readFileSync.mockImplementation((path) => {
+      if (path === 'file1.verses') return file1Content;
+      if (path === 'file2.verses') return file2Content;
+      throw new Error('Unexpected file path');
+    });
+
+    const filePaths = ['file1.verses', 'file2.verses'];
+
+    const expectedOutput = `[1.] 
+[file1] This is verse 1 from file 1
+[file2] This is verse 1 from file 2
+
+[2.] 
+[file1] This is verse 2 from file 1
+[file2] This is verse 2 from file 2
+
+[3.] ---`;
+
+    const result = concatenateVerses(filePaths);
+
+    expect(result).toBe(expectedOutput);
+    expect(readFileSync).toHaveBeenCalledTimes(2);
+  });
+
+  test('handles files with different numbers of verses', () => {
+    const file1Content = `
+|1.| Verse 1 from file 1
+|2.| Verse 2 from file 1
+`;
+    const file2Content = `
+|1.| Verse 1 from file 2
+|2.| Verse 2 from file 2
+|3.| Verse 3 from file 2
+`;
+
+    readFileSync.mockImplementation((path) => {
+      if (path === 'file1.verses') return file1Content;
+      if (path === 'file2.verses') return file2Content;
+      throw new Error('Unexpected file path');
+    });
+
+    const filePaths = ['file1.verses', 'file2.verses'];
+
+    const expectedOutput = `[1.] 
+[file1] Verse 1 from file 1
+[file2] Verse 1 from file 2
+
+[2.] 
+[file1] Verse 2 from file 1
+[file2] Verse 2 from file 2
+
+[3.] Verse 3 from file 2`;
+
+    const result = concatenateVerses(filePaths);
+
+    expect(result).toBe(expectedOutput);
+  });
+
+  test('handles identical verses across files', () => {
+    const file1Content = `|1.| Identical verse`;
+    const file2Content = `|1.| Identical verse`;
+
+    readFileSync.mockImplementation((path) => {
+      if (path === 'file1.verses') return file1Content;
+      if (path === 'file2.verses') return file2Content;
+      throw new Error('Unexpected file path');
+    });
+
+    const filePaths = ['file1.verses', 'file2.verses'];
+
+    const expectedOutput = `[1.] Identical verse`;
+
+    const result = concatenateVerses(filePaths);
+
+    expect(result).toBe(expectedOutput);
+  });
+});

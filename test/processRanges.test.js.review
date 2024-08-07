@@ -1,0 +1,151 @@
+// processRanges.test.mjs
+
+import { jest } from '@jest/globals';
+import { processRanges } from '../lib/range/processRanges.mjs';
+import { writeOutput } from '../verser.mjs';
+
+// Mock the fs module
+jest.mock('fs', () => ({
+  readFileSync: jest.fn(),
+  existsSync: jest.fn(),
+}));
+
+// Mock the writeOutput function
+jest.mock('../verser.mjs', () => ({
+  writeOutput: jest.fn(),
+}));
+
+// Import fs after mocking
+import * as fs from 'fs';
+
+describe('processRanges', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should process ranges and write to output file', () => {
+    const mockContent = `
+|1.| Verse 1
+|2.| Verse 2
+|3.| Verse 3
+|4.| Verse 4
+|5.| Verse 5
+    `.trim();
+
+    fs.readFileSync.mockReturnValue(mockContent);
+    fs.existsSync.mockReturnValue(false);
+
+    const params = {
+      input: 'input.txt',
+      ranges: [{ start: 2, end: 4 }],
+      output: 'output.txt',
+    };
+
+    processRanges(params);
+
+    expect(fs.readFileSync).toHaveBeenCalledWith('input.txt', 'utf8');
+    expect(fs.existsSync).toHaveBeenCalledWith('output.txt');
+    expect(writeOutput).toHaveBeenCalledWith(
+      '|2.| Verse 2\n|3.| Verse 3\n|4.| Verse 4',
+      'output.txt'
+    );
+  });
+
+  test('should merge with existing content when output file exists', () => {
+    const mockInputContent = `
+|1.| Verse 1
+|2.| Verse 2
+|3.| Verse 3
+|4.| Verse 4
+|5.| Verse 5
+    `.trim();
+
+    const mockExistingContent = `
+|2.| Existing Verse 2
+|4.| Existing Verse 4
+    `.trim();
+
+    fs.readFileSync.mockImplementation((path) => {
+      if (path === 'input.txt') return mockInputContent;
+      if (path === 'output.txt') return mockExistingContent;
+    });
+    fs.existsSync.mockReturnValue(true);
+
+    const params = {
+      input: 'input.txt',
+      ranges: [{ start: 2, end: 4 }],
+      output: 'output.txt',
+    };
+
+    processRanges(params);
+
+    expect(fs.readFileSync).toHaveBeenCalledWith('input.txt', 'utf8');
+    expect(fs.readFileSync).toHaveBeenCalledWith('output.txt', 'utf8');
+    expect(fs.existsSync).toHaveBeenCalledWith('output.txt');
+    expect(writeOutput).toHaveBeenCalledWith(
+      '|2.| Verse 2\n|3.| Verse 3\n|4.| Verse 4',
+      'output.txt'
+    );
+  });
+
+  test('should output to console when no output file is specified', () => {
+    const mockContent = `
+|1.| Verse 1
+|2.| Verse 2
+|3.| Verse 3
+|4.| Verse 4
+|5.| Verse 5
+    `.trim();
+
+    fs.readFileSync.mockReturnValue(mockContent);
+    console.log = jest.fn();
+
+    const params = {
+      input: 'input.txt',
+      ranges: [{ start: 2, end: 4 }],
+      output: 'stdout',
+    };
+
+    processRanges(params);
+
+    expect(fs.readFileSync).toHaveBeenCalledWith('input.txt', 'utf8');
+    expect(console.log).toHaveBeenCalledWith('|2.| Verse 2\n|3.| Verse 3\n|4.| Verse 4');
+  });
+
+  test('should handle review mode', () => {
+    const mockContent = `
+|1.| Verse 1
+|2.| Verse 2
+|3.| Verse 3
+|4.| Verse 4
+|5.| Verse 5
+    `.trim();
+
+    fs.readFileSync.mockReturnValue(mockContent);
+    console.log = jest.fn();
+
+    const params = {
+      input: 'input.txt',
+      ranges: [{ start: 2, end: 4 }],
+      review: true,
+    };
+
+    processRanges(params);
+
+    expect(fs.readFileSync).toHaveBeenCalledWith('input.txt', 'utf8');
+    // Add expectations for review mode if implemented
+  });
+
+  test('should handle invalid input', () => {
+    console.log = jest.fn();
+
+    const params = {
+      input: null,
+      ranges: [],
+    };
+
+    processRanges(params);
+
+    expect(console.log).toHaveBeenCalledWith('Please provide an input file and at least one range.');
+  });
+});

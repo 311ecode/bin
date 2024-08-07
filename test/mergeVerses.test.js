@@ -1,5 +1,4 @@
 import { mergeVerses } from '../lib/range/processRanges.mjs';
-// import { describe, test, expect  } from 'jest';
 
 describe('mergeVerses', () => {
   test('merges new verses into existing content', () => {
