@@ -9,5 +9,6 @@ source ~/.bashrc
 
 tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs  translation/ lib
 
-# restore the cwd
-cd $cwd
+  # restore the cwd
+  cd $cwd
+}
