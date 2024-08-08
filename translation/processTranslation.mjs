@@ -16,9 +16,10 @@ const log = logger()();
  * @param {string[]} params.directionFiles - An array of paths to direction files.
  * @param {string} params.model - The name of the model to use for translation.
  * @param {number} params.maxInputChunk - The maximum number of characters for each input chunk.
- * @returns {Promise<void>}
+ * @param {boolean} [singleRound=false] - Whether to stop after processing the first chunk.
+ * @returns {Promise<void>} A promise that resolves when the translation process is complete.
  */
-export async function processTranslation(params) {
+export async function processTranslation(params, singleRound = false) {
   if (!params.origin || !params.output || params.directionFiles.length === 0) {
     console.log('Please provide origin file, output file, and at least one direction file.');
     return;
@@ -67,7 +68,6 @@ export async function processTranslation(params) {
     while (endLine <= maxOrig && chunkSize + directions.length < params.maxInputChunk) {
       const line = originalLines[endLine - 1];
 
-      // Check if adding this line would exceed the max input chunk size
       if (chunkSize + line.length + directions.length > params.maxInputChunk) {
         break;
       }
@@ -81,10 +81,8 @@ export async function processTranslation(params) {
       }
     }
 
-    // Adjust the chunk to end with a '|---' line if possible
     let lastSeparatorIndex = chunk.lastIndexOf('|---');
     if (lastSeparatorIndex !== -1 && lastSeparatorIndex !== chunk.length - 5) {
-      // Find the start of the line containing '|---'
       let lineStart = chunk.lastIndexOf('\n', lastSeparatorIndex) + 1;
       chunk = chunk.substring(0, lineStart);
       endLine = startLine + chunk.split('\n').length - 1;
@@ -101,16 +99,6 @@ export async function processTranslation(params) {
     log('Content preview:');
     log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
 
-    // Check if the chunk has any content other than separator lines
-    // if (chunk.replace(/\|\d+\.\|---\n/g, '').trim() === '') {
-    //   console.log('Skipping chunk as it contains no substantive content to translate.', {
-    //     chunk
-    //   });
-    //   startLine = endLine;
-    //   continue;
-    // }
-    // console.log('directions:' + directions);
-    
     const prompt = directions + '\n' + chunk;
     log('Chunk ready for translation: \n-----\n\n' + prompt + '\n\n-----\n');
     log('Sending chunk to translation model...');
@@ -121,7 +109,6 @@ export async function processTranslation(params) {
     }
     catch (error) {
       log('Error in translation:', error, 'Ohhmm');
-      // console.log('Retrying translation...');
       process.exit(1);
     }
     const translationTime = (Date.now() - translationStartTime) / 1000;
@@ -144,8 +131,6 @@ export async function processTranslation(params) {
 
     log('Translated content preview:', translatedContent);
 
-
-    // Write the translated content to the output file after each chunk
     if (params.output !== 'stdout') {
       log('Writing translated chunk to output file...');
       let finalContent = translatedContent;
@@ -161,6 +146,11 @@ export async function processTranslation(params) {
 
     log(`Translated up to line ${startLine - 1} of ${maxOrig}`);
     log(`Progress: ${((startLine - 1) / maxOrig * 100).toFixed(2)}%`);
+
+    if (singleRound) {
+      log('Single round translation completed. Stopping after first chunk.');
+      break;
+    }
   }
 
   const totalElapsedTime = (Date.now() - startTime) / 1000;
@@ -174,7 +164,6 @@ export async function processTranslation(params) {
   log(`Slowest chunk: ${Math.max(...chunkTimes).toFixed(2)} seconds`);
   log(`Average translation speed: ${avgCharactersPerSecond.toFixed(2)} characters/second`);
 
-  // Final output for stdout option
   if (params.output === 'stdout') {
     log('Outputting complete translation to stdout:');
     log(translatedContent);
