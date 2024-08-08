@@ -6,6 +6,10 @@ import { getMaxLineNumber, processTranslation } from './translation/processTrans
 import { fileURLToPath } from 'url';
 import { concatenateVerses } from "./lib/verseManipulation/concatenateVerses.mjs";
 import { writeOutput } from './writeOutput.mjs';
+import { logger } from './lib/logger.mjs';
+
+const log = logger()();
+
 
 function resolvePath(basePath, relativePath) {
   return isAbsolute(relativePath) ? relativePath : resolve(basePath, relativePath);
@@ -62,10 +66,10 @@ export async function processConfig(args) {
   const basePromptsPath = resolvePath(configDir, jobs.basePromptsPath);
   const original = jobs.original;
   
-  console.log(`Processing job:`);
-  console.log(`  Base Output Path: ${baseOutputPath}`);
-  console.log(`  Base Prompts Path: ${basePromptsPath}`);
-  console.log(`  Original File: ${original}`);
+  log(`Processing job:`);
+  log(`  Base Output Path: ${baseOutputPath}`);
+  log(`  Base Prompts Path: ${basePromptsPath}`);
+  log(`  Original File: ${original}`);
 
   // Extract global prompts
   const globalPrompts = jobs.modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
@@ -88,7 +92,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 function processConcatenationTasks(jobs, baseOutputPath, original) {
   if (jobs.concatenate && jobs.concatenate.length > 0) {
-    console.log('\nProcessing concatenation tasks:');
+    log('\nProcessing concatenation tasks:');
     for (const concatItem of jobs.concatenate) {
       const outputFile = concatItem.file;
       const filesToConcatenate = [];
@@ -98,20 +102,31 @@ function processConcatenationTasks(jobs, baseOutputPath, original) {
       }
 
       const language = concatItem.language;
-      const filePostfix = jobs.languages.find(lang => lang.language === language).filePostfix;
+      const languageConfig = jobs.languages.find(lang => lang.language === language);
+      if (!languageConfig) {
+        console.error(`Error: Language "${language}" not found in the languages configuration.`);
+        continue;
+      }
+      const { filePostfix } = languageConfig;
 
       for (const model of concatItem.models) {
-        const fileName = `${model}-${filePostfix}.md`;
+        const modelExecution = jobs.modelExecutions.find(exec => exec.name === model);
+        if (!modelExecution) {
+          console.error(`Error: Model execution "${model}" not found in the configuration.`);
+          continue;
+        }
+        const { prefix } = modelExecution;
+        const fileName = generateTranslationOutputFilename(prefix, model, filePostfix);
         filesToConcatenate.push(join(baseOutputPath, fileName));
       }
 
-      console.log(`\nConcatenating files for ${language}:`);
+      log(`\nConcatenating files for ${language}:`);
       filesToConcatenate.forEach(file => console.log(`  - ${file}`));
 
       const concatenatedContent = concatenateVerses(filesToConcatenate);
       const outputPath = join(baseOutputPath, outputFile);
 
-      console.log(`Writing concatenated content to: ${outputPath}`);
+      log(`Writing concatenated content to: ${outputPath}`);
       writeOutput(concatenatedContent, outputPath);
     }
   }
@@ -130,6 +145,14 @@ async function processTranslationExecutions(jobs, modelMap, baseOutputPath, orig
     for (const execution of jobs.modelExecutions) {
       if (!execution.name) continue; // Skip the prompts entry
       const { name, prefix, language } = execution;
+      const modelDetails = modelMap.get(name);
+      
+      if (!modelDetails) {
+        console.error(`Error: Model "${name}" not found in the global models list.`);
+        continue;
+      }
+
+      const { sameLineFactor = 1 } = modelDetails;
       const languageConfig = jobs.languages.find(lang => lang.language === language);
       if (!languageConfig) {
         console.error(`Error: Language "${language}" not found in the languages configuration.`);
@@ -142,7 +165,9 @@ async function processTranslationExecutions(jobs, modelMap, baseOutputPath, orig
       executionProgress.push({
         execution,
         currentMaxLine,
-        completed: currentMaxLine >= originalMaxLine
+        adjustedProgress: currentMaxLine / sameLineFactor, // Corrected calculation
+        completed: currentMaxLine >= originalMaxLine,
+        sameLineFactor
       });
 
       if (currentMaxLine < originalMaxLine) {
@@ -155,22 +180,18 @@ async function processTranslationExecutions(jobs, modelMap, baseOutputPath, orig
     // Determine which executions to process in this cycle
     let executionsToProcess;
     if (attemptToKeepTranslationsAtTheSameLine) {
-      const minProgress = Math.min(...executionProgress.map(e => e.currentMaxLine));
-      executionsToProcess = executionProgress.filter(e => e.currentMaxLine === minProgress && !e.completed);
+      const minAdjustedProgress = Math.min(...executionProgress.map(e => e.adjustedProgress));
+      executionsToProcess = executionProgress.filter(e => 
+        e.adjustedProgress === minAdjustedProgress && !e.completed
+      );
     } else {
       executionsToProcess = executionProgress.filter(e => !e.completed);
     }
 
     // Process the selected executions
-    for (const { execution } of executionsToProcess) {
+    for (const { execution, sameLineFactor } of executionsToProcess) {
       const { name, prefix, language } = execution;
       const modelDetails = modelMap.get(name);
-
-      if (!modelDetails) {
-        console.error(`Error: Model "${name}" not found in the global models list.`);
-        continue;
-      }
-
       const { realName, maximumInputLength } = modelDetails;
       const languageConfig = jobs.languages.find(lang => lang.language === language);
       const { filePostfix } = languageConfig;
@@ -189,14 +210,16 @@ async function processTranslationExecutions(jobs, modelMap, baseOutputPath, orig
         maxInputChunk: maximumInputLength
       };
 
-      console.log(`\nProcessing translation for ${name} (using model ${realName}):`);
-      console.log(`  Origin: ${originPath}`);
-      console.log(`  Output: ${outputPath}`);
-      console.log(`  Language: ${language}`);
-      console.log(`  File Postfix: ${filePostfix}`);
-      console.log(`  Maximum Input Length: ${maximumInputLength}`);
-      console.log(`  Current progress: ${getMaxLineNumber(outputPath)} / ${originalMaxLine} lines`);
-      console.log(`  Prompts:`);
+      log(`\nProcessing translation for ${name} (using model ${realName}):`);
+      log(`  Origin: ${originPath}`);
+      log(`  Output: ${outputPath}`);
+      log(`  Language: ${language}`);
+      log(`  File Postfix: ${filePostfix}`);
+      log(`  Maximum Input Length: ${maximumInputLength}`);
+      log(`  Same Line Factor: ${sameLineFactor}`);
+      log(`  Current progress: ${getMaxLineNumber(outputPath)} / ${originalMaxLine} lines`);
+      log(`  Adjusted progress: ${(getMaxLineNumber(outputPath) / sameLineFactor).toFixed(2)} lines`);
+      log(`  Prompts:`);
       promptPaths.forEach(path => console.log(`    - ${path}`));
 
       try {
@@ -213,9 +236,17 @@ async function processTranslationExecutions(jobs, modelMap, baseOutputPath, orig
         }
       }
     }
+
+    // Call processConcatenationTasks after each round
+    log("\nUpdating concatenated output...");
+    await processConcatenationTasks(jobs, baseOutputPath, original);
+    log("Concatenated output updated.");
   }
 
-  console.log("\nAll translations completed.");
+  log("\nAll translations completed.");
+  log("\nPerforming final concatenation...");
+  await processConcatenationTasks(jobs, baseOutputPath, original);
+  log("Final concatenation completed.");
 }
 
 function generateTranslationOutputFilename(prefix, name, filePostfix) {
