@@ -72,7 +72,6 @@ describe('mergeVerses2', () => {
 
   it('should keep existing verses when overwrite is false', () => {
     const result = mergeVerses(existingContent, newVerses, { overwrite: false });
-    console.log('Result when overwrite is false:', result);
     expect(result).toContain('|2.| Existing verse 2');
   });
 

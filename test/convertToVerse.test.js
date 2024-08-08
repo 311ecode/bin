@@ -46,67 +46,46 @@ and here more. amore.
     expect(convertToVerse(input)).toBe(expectedOutput);
   });
 
-//   test('xcx convertFromVerse reverses convertToVerse', () => {
-//     const originalText = `hello
+  test('Avoiding a kind of problem with sentence closings.', () => {
+    const input = `
+óvták attól, hogy „az európai hullával” ölelkezzék... Hitük van, küldetésérzetük, ex-oriente-lux[15]-meggyőződésük?...  
+and this !...
+ehh..
+neeh...
+really?.
+really?..
+really?...
+really!.
+really!.. 
+really!...
+`;
   
-// word.
-// New sentence, new line.
-// ahh and before we had a line break. and 
-
-// now two we had.
-
-
-
-
-// and here more.
-// amore.
-// `;
-  
-//     const versed = convertToVerse(originalText);
-//     const reversed = convertFromVerse(versed);
-  
-//     console.log(
-//       `originalText: ${originalText}\n\n\n---` +
-//       `versed: ${versed}\n\n\n---` +
-//       `reversed: ${reversed}---`
-//     );
-  
-//     expect(reversed).toBe(originalText);
-//   });
-
-  // test('splits sentences within a single paragraph', () => {
-  //   const input = "This is a sentence. Another sentence! A question?";
-  //   const expected = "|1.| This is a sentence.\n|2.| Another sentence!\n|3.| A question?";
-  //   expect(convertToVerse(input)).toBe(expected);
-  // });
-
-  // test('maintains formatting of already formatted verses', () => {
-  //   const input = "|1.| Already formatted verse.";
-  //   const expected = "|1.| Already formatted verse.";
-  //   expect(convertToVerse(input)).toBe(expected);
-  // });
-
-  // test('handles mixed formatting', () => {
-  //   const input = "Mixed format.\n|2.| Pre-formatted verse.\nNormal text.";
-  //   const expected = "|1.| Mixed format.\n|2.| Pre-formatted verse.\n|3.| Normal text.";
-  //   expect(convertToVerse(input)).toBe(expected);
-  // });
-
-  // test('preserves multiple consecutive empty lines', () => {
-  //   const input = "Paragraph 1.\n\n\nParagraph 2.";
-  //   const expected = "|1.| Paragraph 1.\n|2.|---\n|3.|---\n|4.| Paragraph 2.";
-  //   expect(convertToVerse(input)).toBe(expected);
-  // });
-
-  // test('handles sentences with multiple punctuation marks', () => {
-  //   const input = "Hello... This is a test!!! What???";
-  //   const expected = "|1.| Hello...\n|2.| This is a test!!!\n|3.| What???";
-  //   expect(convertToVerse(input)).toBe(expected);
-  // });
-
-  // test('option to keep paragraphs as single verses', () => {
-  //   const input = "This is a paragraph. With multiple sentences! And a question?";
-  //   const expected = "|1.| This is a paragraph. With multiple sentences! And a question?";
-  //   expect(convertToVerse(input, false)).toBe(expected);
-  // });
+    const expectedOutput = 
+`|1.| ---
+|2.| óvták attól, hogy „az európai hullával” ölelkezzék...
+|3.| Hitük van, küldetésérzetük, ex-oriente-lux[15]-meggyőződésük?...
+|4.| ---
+|5.| and this!...
+|6.| ---
+|7.| ehh..
+|8.| ---
+|9.| neeh...
+|10.| ---
+|11.| really?.
+|12.| ---
+|13.| really?..
+|14.| ---
+|15.| really?...
+|16.| ---
+|17.| really!.
+|18.| ---
+|19.| really!..
+|20.| ---
+|21.| really!...
+|22.| ---`;
+    // console.log(convertToVerse(input));
+    
+    expect(convertToVerse(input)).toBe(expectedOutput);
+    
+  })
 });
