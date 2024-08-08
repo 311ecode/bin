@@ -219,17 +219,16 @@ export function getMaxLineNumber(filePath) {
  * @function parseVerses
  * @param {string} content - The string containing the verses, where each verse begins with "|number|. "
  *                            (e.g., "|1|. This is verse 1.")
- * @returns {Object<number, string>} An object where keys are verse numbers and values are the corresponding verse texts.
+ * @returns {Object<string, string>} An object where keys are verse numbers and values are the corresponding verse texts.
  */
-function parseVerses(content) {
+export function parseVerses(content) {
   const lines = content.split('\n');
-  /** @type {Object<number, string>} */
+  /** @type {Object<string, string>} */
   const verses = {};
   lines.forEach(line => {
     const match = line.match(/^\|(\d+)\.\|/);
     if (match) {
-      const verseNumber = parseInt(match[1]);
-      verses[verseNumber] = line;
+      verses[match[1]] = line;
     }
   });
 
