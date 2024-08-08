@@ -6,7 +6,7 @@ import { parseArguments } from "./lib/parseArguments.mjs";
 import { printHelp } from "./printHelp.mjs";
 import { processRanges } from "./lib/range/processRanges.mjs"; 
 import { processTranslation } from "./translation/processTranslation.mjs";
-import { writeOutput } from "./verser.mjs";
+import { writeOutput } from './writeOutput.mjs';
 
 export async function processFiles(args) {
   let params = parseArguments(args);

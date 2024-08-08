@@ -1,11 +1,23 @@
 import { readFileSync, existsSync } from "fs";
 import { chatWithOllama } from "./drivers/ollama.mjs";
-import { writeOutput } from "../verser.mjs";
+import { writeOutput } from '../writeOutput.mjs';
 import { mergeVerses } from "../lib/range/processRanges.mjs"; 
 import { logger } from "../lib/logger.mjs";
 
 const log = logger()();
 
+/**
+ * Process a translation task based on the provided parameters.
+ * @async
+ * @function processTranslation
+ * @param {Object} params - The parameters for the translation process.
+ * @param {string} params.origin - The path to the origin file.
+ * @param {string} params.output - The path to the output file or 'stdout'.
+ * @param {string[]} params.directionFiles - An array of paths to direction files.
+ * @param {string} params.model - The name of the model to use for translation.
+ * @param {number} params.maxInputChunk - The maximum number of characters for each input chunk.
+ * @returns {Promise<void>}
+ */
 export async function processTranslation(params) {
   if (!params.origin || !params.output || params.directionFiles.length === 0) {
     console.log('Please provide origin file, output file, and at least one direction file.');
@@ -173,13 +185,26 @@ export async function processTranslation(params) {
   log('','Ohhmm');
 }
 
+/**
+ * Format a number of seconds into a human-readable string.
+ * @function formatTime
+ * @param {number} seconds - The number of seconds to format.
+ * @returns {string} A string in the format "Xh Ym Zs".
+ */
 export function formatTime(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = Math.floor(seconds % 60);
+  
   return `${hours}h ${minutes}m ${remainingSeconds}s`;
 }
 
+/**
+ * Get the maximum line number from a file.
+ * @function getMaxLineNumber
+ * @param {string} filePath - The path to the file to check.
+ * @returns {number} The maximum line number found in the file.
+ */
 export function getMaxLineNumber(filePath) {
   if (!existsSync(filePath)) return 0;
   const content = readFileSync(filePath, 'utf8');
@@ -194,11 +219,22 @@ export function getMaxLineNumber(filePath) {
       }
     }
   }
+
   return maxLineNumber;
 }
 
+/**
+ * Parses verses from content and returns them as an object. 
+ * Each key in the returned object is a verse number, and the corresponding value is the verse text.
+ *
+ * @function parseVerses
+ * @param {string} content - The string containing the verses, where each verse begins with "|number|. "
+ *                            (e.g., "|1|. This is verse 1.")
+ * @returns {Object<number, string>} An object where keys are verse numbers and values are the corresponding verse texts.
+ */
 function parseVerses(content) {
   const lines = content.split('\n');
+  /** @type {Object<number, string>} */
   const verses = {};
   lines.forEach(line => {
     const match = line.match(/^\|(\d+)\.\|/);
@@ -207,6 +243,7 @@ function parseVerses(content) {
       verses[verseNumber] = line;
     }
   });
+
   return verses;
 }
 
