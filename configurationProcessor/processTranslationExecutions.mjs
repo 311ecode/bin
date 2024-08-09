@@ -2,6 +2,9 @@ import { join } from "path/posix";
 import { generateTranslationOutputFilename } from './generateTranslationOutputFilename.mjs';
 import { processConcatenationTasks } from "./processConcatenationTasks.mjs";
 import { getMaxLineNumber, processTranslation } from "../translation/processTranslation.mjs";
+import { logger } from "../lib/logger.mjs";
+
+const log  = logger()();
 
 export async function processTranslationExecutions(jobs, modelMap, baseOutputPath, original, globalPrompts, basePromptsPath) {
   const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
@@ -42,13 +45,11 @@ export async function processTranslationExecutions(jobs, modelMap, baseOutputPat
 
       const adjustedProgress = sameLineFactor === 0 ? Infinity : currentMaxLine / sameLineFactor;
 
-      executionProgress.push({
-        execution,
-        currentMaxLine,
-        adjustedProgress,
-        completed,
-        sameLineFactor
-      });
+      const executionProgressConfig = { execution, currentMaxLine, adjustedProgress, completed, sameLineFactor };
+
+      log(executionProgressConfig);
+
+      executionProgress.push(executionProgressConfig);
 
       if (!completed) {
         allCompleted = false;
@@ -89,23 +90,23 @@ export async function processTranslationExecutions(jobs, modelMap, baseOutputPat
         maxInputChunk: maximumInputLength
       };
 
-      console.log(`\nProcessing translation for ${name} (using model ${realName}):`);
-      console.log(`  Origin: ${originPath}`);
-      console.log(`  Output: ${outputPath}`);
-      console.log(`  Language: ${language}`);
-      console.log(`  File Postfix: ${filePostfix}`);
-      console.log(`  Maximum Input Length: ${maximumInputLength}`);
-      console.log(`  Same Line Factor: ${sameLineFactor}`);
-      console.log(`  Current progress: ${getMaxLineNumber(outputPath)} / ${originalMaxLine} lines`);
-      console.log(`  Adjusted progress: ${(getMaxLineNumber(outputPath) / sameLineFactor).toFixed(2)} lines`);
-      console.log(`  Prompts:`);
-      promptPaths.forEach(path => console.log(`    - ${path}`));
+      log(`\nProcessing translation for ${name} (using model ${realName}):`);
+      log(`  Origin: ${originPath}`);
+      log(`  Output: ${outputPath}`);
+      log(`  Language: ${language}`);
+      log(`  File Postfix: ${filePostfix}`);
+      log(`  Maximum Input Length: ${maximumInputLength}`);
+      log(`  Same Line Factor: ${sameLineFactor}`);
+      log(`  Current progress: ${getMaxLineNumber(outputPath)} / ${originalMaxLine} lines`);
+      log(`  Adjusted progress: ${(getMaxLineNumber(outputPath) / sameLineFactor).toFixed(2)} lines`);
+      log(`  Prompts:`);
+      promptPaths.forEach(path => log(`    - ${path}`));
 
       try {
         await processTranslation(translationParams, true);
-        console.log(`Chunk translation completed for ${name}`);
+        log(`Chunk translation completed for ${name}`);
       } catch (error) {
-        console.error(`Error processing translation for ${name}: ${error.message}`);
+        log(`Error processing translation for ${name}: ${error.message}`);
       }
 
       if (!attemptToKeepTranslationsAtTheSameLine) {
@@ -117,13 +118,13 @@ export async function processTranslationExecutions(jobs, modelMap, baseOutputPat
     }
 
     // Call processConcatenationTasks after each round
-    console.log("\nUpdating concatenated output...");
+    log("\nUpdating concatenated output...");
     await processConcatenationTasks(jobs, baseOutputPath, original);
-    console.log("Concatenated output updated.");
+    log("Concatenated output updated.");
   }
 
-  console.log("\nAll translations completed.");
-  console.log("\nPerforming final concatenation...");
+  log("\nAll translations completed.");
+  log("\nPerforming final concatenation...");
   await processConcatenationTasks(jobs, baseOutputPath, original);
-  console.log("Final concatenation completed.");
+  log("Final concatenation completed.");
 }
