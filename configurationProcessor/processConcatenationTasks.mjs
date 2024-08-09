@@ -17,7 +17,7 @@ export function processConcatenationTasks(jobs, baseOutputPath, original) {
         if (existsSync(originalPath)) {
           filesToConcatenate.push(originalPath);
         } else {
-          console.warn(`Warning: Original file not found: ${originalPath}`);
+          log(`Warning: Original file not found: ${originalPath}`);
         }
       }
 
