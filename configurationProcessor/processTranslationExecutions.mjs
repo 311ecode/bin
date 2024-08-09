@@ -3,46 +3,27 @@ import { generateTranslationOutputFilename } from './generateTranslationOutputFi
 import { processConcatenationTasks } from "./processConcatenationTasks.mjs";
 import { getMaxLineNumber, processTranslation } from "../translation/processTranslation.mjs";
 import { logger } from "../lib/logger.mjs";
+import { getConfigDetails, readConfigFile } from "../configutationProcessor.mjs";
 
 const log  = logger()();
 
-/**
- * Processes multiple translation jobs concurrently, managing their execution and progress.
- * 
- * @async
- * @function processTranslationExecutions
- * @param {Object} jobs - The configuration object for translation jobs.
- * @param {boolean} [jobs.attemptToKeepTranslationsAtTheSameLine=false] - Whether to try to keep all translations at the same line number.
- * @param {Array<Object>} jobs.modelExecutions - Array of model execution configurations.
- * @param {Array<Object>} jobs.languages - Array of language configurations.
- * @param {Map<string, Object>} modelMap - A map of model names to their configurations.
- * @param {string} baseOutputPath - The base path for output files.
- * @param {string} original - The filename of the original text to be translated.
- * @param {Array<string>} globalPrompts - Array of global prompt filenames.
- * @param {string} basePromptsPath - The base path for prompt files.
- * @throws {Error} Throws an error if there's an issue during translation processing.
- * @returns {Promise<void>} A promise that resolves when all translations are completed.
- * 
- * @description
- * This function manages the execution of multiple translation jobs. It iterates through each job,
- * checking progress and executing translations as needed. It supports concurrent translation
- * with the option to keep all translations progressing at roughly the same pace. After each
- * round of translations, it updates a concatenated output of all translations.
- * 
- * @example
- * const jobs = {
- *   attemptToKeepTranslationsAtTheSameLine: true,
- *   modelExecutions: [...],
- *   languages: [...]
- * };
- * const modelMap = new Map([...]);
- * await processTranslationExecutions(jobs, modelMap, './output', 'original.txt', ['prompt1.txt', 'prompt2.txt'], './prompts');
- */
-export async function processTranslationExecutions(jobs, modelMap, baseOutputPath, original, globalPrompts, basePromptsPath) {
-  const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
-  const originalMaxLine = getMaxLineNumber(join(baseOutputPath, original));
+
+export async function processTranslationExecutions(configPath) {
+
   let allCompleted = false;
   while (!allCompleted) {
+
+    const {      
+      jobs,
+      modelMap,
+      baseOutputPath,
+      basePromptsPath,
+      original,
+      globalPrompts
+    } = await getConfigDetails(configPath);
+  
+    const originalMaxLine = getMaxLineNumber(join(baseOutputPath, original));
+    const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
     allCompleted = true;
     const executionProgress = [];
     // Fetch all execution outputs
@@ -150,6 +131,13 @@ export async function processTranslationExecutions(jobs, modelMap, baseOutputPat
 
   log("\nAll translations completed.");
   log("\nPerforming final concatenation...");
+  
+  const {      
+    jobs,
+    baseOutputPath,
+    original,
+  } = await getConfigDetails(configPath);
+
   await processConcatenationTasks(jobs, baseOutputPath, original);
   log("Final concatenation completed.");
 }

@@ -9,16 +9,6 @@ import { processTranslationExecutions } from './configurationProcessor/processTr
 
 export const log = logger()();
 
-/**
- * Resolves a path to its absolute counterpart.
- * 
- * @param {string} basePath - The base path from which the path will be resolved. (e.g., 'project/')
- * @param {string} relativePath - The path to resolve within the base path, either using an absolute path reference or resolving relative to the base path. 
- * @returns {string}  - The absolute path. 
- */
-function resolvePath(basePath, relativePath) {
-  return isAbsolute(relativePath) ? relativePath : resolve(basePath, relativePath);
-}
 
 /**
  * Parses a command-line argument representing a configuration file path.
@@ -42,25 +32,74 @@ export async function processConfig(args) {
     process.exit(1);
   }
 
+  // Process model executions
+  await processTranslationExecutions(configPath);
+  // Process concatenation tasks
+  const {      
+    jobs,
+    baseOutputPath,
+    original,
+  } = await getConfigDetails(configPath);
+
+  processConcatenationTasks(jobs, baseOutputPath, original);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  processConfig(process.argv.slice(2)).catch(error => {
+    console.error('An error occurred:', error);
+    process.exit(1);
+  });
+}
+
+/**
+ * Represents the details of a model.
+ * @typedef {Object} ModelDetails
+ * @property {string} realName - The real name of the model.
+ * @property {number} maximumInputLength - The maximum input length for the model.
+ * @property {number} sameLineFactor - The same line factor for the model.
+ */
+
+/**
+ * Represents the configuration details.
+ * @typedef {Object} ConfigDetails
+ * @property {string} resolvedConfigPath - The absolute path to the configuration file.
+ * @property {string} configDir - The directory containing the configuration file.
+ * @property {Object} config - The entire configuration object.
+ * @property {Object} jobs - The jobs section of the configuration.
+ * @property {Map<string, ModelDetails>} modelMap - A map of model names to their details.
+ * @property {string} baseOutputPath - The resolved base output path.
+ * @property {string} basePromptsPath - The resolved base prompts path.
+ * @property {string} original - The original file path.
+ * @property {Array<string>} globalPrompts - An array of global prompts.
+ */
+
+/**
+ * Retrieves and processes configuration details from a given config file path.
+ * 
+ * @param {string} configPath - The path to the configuration file.
+ * @returns {Promise<ConfigDetails>} A promise that resolves to an object containing the processed configuration details.
+ * @throws {Error} If there's an issue reading or processing the configuration file.
+ */
+export async function getConfigDetails(configPath) {
   const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
   const configDir = dirname(resolvedConfigPath);
-  
+
   console.log(`Using configuration file: ${resolvedConfigPath}`);
 
   const config = await readConfigFile(resolvedConfigPath);
-  
+
   const { jobs } = config;
 
   // Create a map of model names to their details
   const modelMap = new Map(jobs.models.map(model => [
-    model.name, 
+    model.name,
     { realName: model.realName, maximumInputLength: model.maximumInputLength, sameLineFactor: model.sameLineFactor }
   ]));
 
-  const baseOutputPath = resolvePath(configDir, jobs.baseOutputPath);
-  const basePromptsPath = resolvePath(configDir, jobs.basePromptsPath);
+  const baseOutputPath = resolve(configDir, jobs.baseOutputPath);
+  const basePromptsPath = resolve(configDir, jobs.basePromptsPath);
   const original = jobs.original;
-  
+
   log(`Processing job:`);
   log(`  Base Output Path: ${baseOutputPath}`);
   log(`  Base Prompts Path: ${basePromptsPath}`);
@@ -69,21 +108,18 @@ export async function processConfig(args) {
   // Extract global prompts
   const globalPrompts = jobs.modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
 
-  // Process model executions
-  await processTranslationExecutions(jobs, modelMap, baseOutputPath, original, globalPrompts, basePromptsPath);
-  // Process concatenation tasks
-  processConcatenationTasks(jobs, baseOutputPath, original);
+  return {
+    resolvedConfigPath,
+    configDir,
+    config,
+    jobs,
+    modelMap,
+    baseOutputPath,
+    basePromptsPath,
+    original,
+    globalPrompts
+  };
 }
-
-// Example usage:
-// node configProcessor.mjs -c config.yaml
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  processConfig(process.argv.slice(2)).catch(error => {
-    console.error('An error occurred:', error);
-    process.exit(1);
-  });
-}
-
 /**
  * Parses a YAML or JSON configuration file.
  * 
