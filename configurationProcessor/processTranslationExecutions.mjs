@@ -75,7 +75,11 @@ export async function processTranslationExecutions(jobs, modelMap, baseOutputPat
         sameLineFactor = 0;
       }
 
-      const adjustedProgress = sameLineFactor === 0 ? Infinity : currentMaxLine / sameLineFactor;
+      // 1 means that currentMaxLine is 0 and 0 means that currentMaxLine is equal to originalMaxLine
+      const inverseProgress = 1 - (currentMaxLine / originalMaxLine);
+
+      // adjust the progress based on the sameLineFactor
+      const adjustedProgress = inverseProgress * (sameLineFactor === 0 ? 1 : currentMaxLine / sameLineFactor);
 
       const executionProgressConfig = { execution, currentMaxLine, adjustedProgress, completed, sameLineFactor };
 
