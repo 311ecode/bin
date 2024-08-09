@@ -58,7 +58,7 @@ export async function processConfig(args) {
   // Create a map of model names to their details
   const modelMap = new Map(jobs.models.map(model => [
     model.name, 
-    { realName: model.realName, maximumInputLength: model.maximumInputLength }
+    { realName: model.realName, maximumInputLength: model.maximumInputLength, sameLineFactor: model.sameLineFactor }
   ]));
 
   const baseOutputPath = resolvePath(configDir, jobs.baseOutputPath);
@@ -75,7 +75,6 @@ export async function processConfig(args) {
 
   // Process model executions
   await processTranslationExecutions(jobs, modelMap, baseOutputPath, original, globalPrompts, basePromptsPath);
-
   // Process concatenation tasks
   processConcatenationTasks(jobs, baseOutputPath, original);
 }
