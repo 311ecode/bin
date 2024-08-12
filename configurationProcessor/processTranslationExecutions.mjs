@@ -8,7 +8,7 @@ import { getConfigDetails, readConfigFile } from "../configutationProcessor.mjs"
 const log  = logger()();
 
 
-export async function processTranslationExecutions(configPath) {
+export async function processTranslationExecutions(configPath, executionGroup) {
 
   let allCompleted = false;
   while (!allCompleted) {
@@ -20,7 +20,7 @@ export async function processTranslationExecutions(configPath) {
       basePromptsPath,
       original,
       globalPrompts
-    } = await getConfigDetails(configPath);
+    } = await getConfigDetails(configPath, executionGroup);
   
     const originalMaxLine = getMaxLineNumber(join(baseOutputPath, original));
     const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
@@ -125,19 +125,13 @@ export async function processTranslationExecutions(configPath) {
 
     // Call processConcatenationTasks after each round
     log("\nUpdating concatenated output...");
-    await processConcatenationTasks(jobs, baseOutputPath, original);
+    await processConcatenationTasks(configPath, executionGroup);
     log("Concatenated output updated.");
   }
 
   log("\nAll translations completed.");
   log("\nPerforming final concatenation...");
   
-  const {      
-    jobs,
-    baseOutputPath,
-    original,
-  } = await getConfigDetails(configPath);
-
-  await processConcatenationTasks(jobs, baseOutputPath, original);
+  await processConcatenationTasks(configPath, executionGroup);
   log("Final concatenation completed.");
 }

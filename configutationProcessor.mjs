@@ -32,16 +32,13 @@ export async function processConfig(args) {
     process.exit(1);
   }
 
+  const executionGroup = 'notYetImplemented';
+
   // Process model executions
   await processTranslationExecutions(configPath);
   // Process concatenation tasks
-  const {      
-    jobs,
-    baseOutputPath,
-    original,
-  } = await getConfigDetails(configPath);
 
-  processConcatenationTasks(jobs, baseOutputPath, original);
+  await processConcatenationTasks(configPath, executionGroup);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -71,16 +68,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
  * @property {string} basePromptsPath - The resolved base prompts path.
  * @property {string} original - The original file path.
  * @property {Array<string>} globalPrompts - An array of global prompts.
+ * @property {Array<object>} modelExecutions - An array of model executions.
  */
 
 /**
  * Retrieves and processes configuration details from a given config file path.
  * 
  * @param {string} configPath - The path to the configuration file.
+ * @param {string} executionGroup - The execution group to process.
  * @returns {Promise<ConfigDetails>} A promise that resolves to an object containing the processed configuration details.
  * @throws {Error} If there's an issue reading or processing the configuration file.
  */
-export async function getConfigDetails(configPath) {
+export async function getConfigDetails(configPath, executionGroup) {
   const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
   const configDir = dirname(resolvedConfigPath);
 
@@ -106,8 +105,8 @@ export async function getConfigDetails(configPath) {
   log(`  Original File: ${original}`);
 
   // Extract global prompts
-  const globalPrompts = jobs.modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
-
+  const modelExecutions = jobs.modelExecutions;
+  const globalPrompts = modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
   return {
     resolvedConfigPath,
     configDir,
@@ -117,7 +116,8 @@ export async function getConfigDetails(configPath) {
     baseOutputPath,
     basePromptsPath,
     original,
-    globalPrompts
+    globalPrompts,
+    modelExecutions
   };
 }
 /**

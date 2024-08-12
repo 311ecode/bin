@@ -1,11 +1,16 @@
 import { existsSync } from "fs";
 import { join } from "path/posix";
-import { log } from "../configutationProcessor.mjs";
+import { getConfigDetails, log } from "../configutationProcessor.mjs";
 import { generateTranslationOutputFilename } from './generateTranslationOutputFilename.mjs';
 import { concatenateVerses } from "../lib/verseManipulation/concatenateVerses.mjs";
 import { writeOutput } from "../writeOutput.mjs";
 
-export function processConcatenationTasks(jobs, baseOutputPath, original) {
+export async function processConcatenationTasks(configPath, executionGroup) {
+  const {
+    jobs,
+    baseOutputPath,
+    original,
+  } = await getConfigDetails(configPath, executionGroup);
   if (jobs.concatenate && jobs.concatenate.length > 0) {
     log('\nProcessing concatenation tasks:');
     for (const concatItem of jobs.concatenate) {
