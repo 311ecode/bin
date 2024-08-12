@@ -87,11 +87,37 @@ export async function processTranslationExecutions(configPath, executionGroup) {
   log("Final concatenation completed.");
 }
 
+/**
+ * @typedef {Object} TranslationParams
+ * @property {string} origin - The path to the origin file.
+ * @property {string} output - The path where the output will be saved.
+ * @property {string[]} directionFiles - An array of paths to the direction (prompt) files.
+ * @property {string} model - The real name of the model to be used for translation.
+ * @property {number} maxInputChunk - The maximum length of input that can be processed at once.
+ */
 
+
+/**
+ * Performs translations on the given input file.
+ * 
+ * @async
+ * @function performTranslations
+ * @param {string} originPath - The path to the original file to be translated.
+ * @param {string} outputPath - The path where the translated output will be saved.
+ * @param {string[]} promptPaths - An array of paths to prompt files used for translation.
+ * @param {string} realName - The real name of the model to be used for translation.
+ * @param {number} maximumInputLength - The maximum length of input that can be processed at once.
+ * @param {boolean} attemptToKeepTranslationsAtTheSameLine - Whether to attempt to keep translations at the same line as the original.
+ * @param {string} name - The name of the current translation job (used for logging).
+ * @param {number} originalMaxLine - The maximum line number of the original file.
+ * @throws {Error} Throws an error if there's an issue during the translation process.
+ * @returns {Promise<void>}
+ */
 async function performTranslations(originPath, outputPath, promptPaths, realName, maximumInputLength, attemptToKeepTranslationsAtTheSameLine, name, originalMaxLine) {
 
   try {
 
+    /** @type {TranslationParams} */
     const translationParams = {
       origin: originPath,
       output: outputPath,
@@ -130,18 +156,65 @@ function logTranslationProgress(name, realName, originPath, outputPath, language
   promptPaths.forEach(path => log(`    - ${path}`));
 }
 
+/**
+ * @typedef {Object} ExecutionProgressItem
+ * @property {import('../configutationProcessor.mjs').Execution} execution - The execution details.
+ * @property {number} adjustedProgress - The adjusted progress of the execution.
+ * @property {boolean} completed - Whether the execution is completed.
+ * @property {number} sameLineFactor - The factor used to adjust progress calculation.
+ * @property {number} currentMaxLine - The current maximum line number processed.
+ */
+
+/**
+ * Determines which executions should be processed based on the current progress and settings.
+ * 
+ * @function determineExecutionsToProcess
+ * @param {boolean} attemptToKeepTranslationsAtTheSameLine - Whether to attempt to keep translations at the same line as the original.
+ * @param {ExecutionProgressItem[]} executionProgress - An array of objects representing the progress of each execution.
+ * @param {ExecutionProgressItem[]} executionsToProcess - The initial array of executions to process (may be empty).
+ * @returns {ExecutionProgressItem[]} The filtered array of executions to process.
+ */
 function determineExecutionsToProcess(attemptToKeepTranslationsAtTheSameLine, executionProgress, executionsToProcess) {
   if (attemptToKeepTranslationsAtTheSameLine) {
     const minAdjustedProgress = Math.min(...executionProgress.map(e => e.adjustedProgress));
     log(`Minimum adjusted progress: ${minAdjustedProgress}`);
-    executionsToProcess = executionProgress.filter(e => e.adjustedProgress === minAdjustedProgress && !e.completed
-    );
+    executionsToProcess = executionProgress.filter(e => e.adjustedProgress === minAdjustedProgress && !e.completed);
   } else {
     executionsToProcess = executionProgress.filter(e => !e.completed);
   }
   return executionsToProcess;
 }
 
+// /**
+//  * @typedef {import('../configutationProcessor.mjs').Execution} Execution
+//  */
+
+/**
+ * @typedef {Object} ExecutionProgressConfig
+ * @property {import('../configutationProcessor.mjs').Execution} execution - The execution details.
+ * @property {number} currentMaxLine - The current maximum line number processed.
+ * @property {number} adjustedProgress - The progress adjusted by sameLineFactor.
+ * @property {boolean} completed - Whether the execution is completed.
+ * @property {number} sameLineFactor - The factor used to adjust progress calculation.
+ */
+
+/**
+ * @typedef {Object} ExecutionProgressResult
+ * @property {ExecutionProgressConfig[]} executionProgress - Array of progress configurations for each execution.
+ * @property {number} originalMaxLine - The maximum line number of the original file.
+ * @property {boolean} allCompleted - Whether all executions are completed.
+ */
+
+/**
+ * Calculates the progress of each execution in the translation process.
+ * 
+ * @async
+ * @function calculateExecutionProgress
+ * @param {string} configPath - The path to the configuration file.
+ * @param {string} executionGroup - The group of executions to process.
+ * @param {boolean} allCompleted - Initial completion status (will be updated in the function).
+ * @returns {Promise<ExecutionProgressResult>} The calculated progress for each execution and overall status.
+ */
 async function calculateExecutionProgress(
   configPath, executionGroup,
   allCompleted 
