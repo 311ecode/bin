@@ -7,7 +7,6 @@ import { getConfigDetails } from "../configutationProcessor.mjs";
 
 const log  = logger()();
 
-
 export async function processTranslationExecutions(configPath, executionGroup) {
 
   let allCompleted = false;
@@ -29,7 +28,8 @@ export async function processTranslationExecutions(configPath, executionGroup) {
     
     (
       { executionProgress, originalMaxLine, allCompleted } = 
-        await calculateExecutionProgress(configPath, executionGroup, allCompleted));
+        await calculateExecutionProgress(configPath, executionGroup, allCompleted)
+    );
 
     if (allCompleted) break;
 
