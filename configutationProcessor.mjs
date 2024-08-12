@@ -6,9 +6,59 @@ import { fileURLToPath } from 'url';
 import { logger } from './lib/logger.mjs';
 import { processConcatenationTasks } from './configurationProcessor/processConcatenationTasks.mjs';
 import { processTranslationExecutions } from './configurationProcessor/processTranslationExecutions.mjs';
+import { defaultModelExecutions } from './configurationProcessor/processTranslationExecutions/executeTranslationCycleNextUntranslatedItems.mjs';
 
 export const log = logger()();
 
+
+export async function processConfig(args) {
+  const configPath = parseConfigArgument(args);
+  
+  if (!configPath) {
+    console.error('Please provide a configuration file using -c or --config');
+    process.exit(1);
+  }
+
+  // Process model executions
+  await processTranslationExecutions(
+    {
+      processModelExecutions : (jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted)=>{
+        console.log(
+          {
+            jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted
+          },"FIIIII FEEEE"
+        )
+        return true
+      }
+    }
+  )(configPath, 'basictranslation');
+  // Process concatenation tasks
+  const {      
+    jobs,
+    baseOutputPath,
+    original,
+    executionGroups,
+    globalPrompts
+  } = await getConfigDetails(configPath, 'basictranslation');
+
+  executionGroups.forEach(group => {
+    console.log(`Processing group: ${group}`);
+    processConcatenationTasks(jobs, baseOutputPath, original, executionGroups, globalPrompts);
+  });
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  processConfig(process.argv.slice(2)).catch(error => {
+    console.error('An error occurred:', error);
+    process.exit(1);
+  });
+}
+
+
+function getGroupKeys(modelExecutions) {
+  const groupKeys = modelExecutions.map(group =>group.name);
+  return groupKeys;
+}
 
 /**
  * Parses a command-line argument representing a configuration file path.
@@ -24,32 +74,6 @@ function parseConfigArgument(args) {
   return args[configFlag + 1];
 }
 
-export async function processConfig(args) {
-  const configPath = parseConfigArgument(args);
-  
-  if (!configPath) {
-    console.error('Please provide a configuration file using -c or --config');
-    process.exit(1);
-  }
-
-  // Process model executions
-  await processTranslationExecutions(configPath);
-  // Process concatenation tasks
-  const {      
-    jobs,
-    baseOutputPath,
-    original,
-  } = await getConfigDetails(configPath);
-
-  processConcatenationTasks(jobs, baseOutputPath, original);
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  processConfig(process.argv.slice(2)).catch(error => {
-    console.error('An error occurred:', error);
-    process.exit(1);
-  });
-}
 
 /**
  * Represents the details of a model.
@@ -71,16 +95,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
  * @property {string} basePromptsPath - The resolved base prompts path.
  * @property {string} original - The original file path.
  * @property {Array<string>} globalPrompts - An array of global prompts.
+ * @property {Array<string>} executionGroups - An array of execution groups.
+ * @property {Array<string>} concatenate - An array of concatenations.
  */
 
 /**
  * Retrieves and processes configuration details from a given config file path.
  * 
  * @param {string} configPath - The path to the configuration file.
+ * @param {string|false} executionGroup - The execution group to process.
  * @returns {Promise<ConfigDetails>} A promise that resolves to an object containing the processed configuration details.
  * @throws {Error} If there's an issue reading or processing the configuration file.
  */
-export async function getConfigDetails(configPath) {
+export async function getConfigDetails(configPath, executionGroup="basictanslation") {
+  log(`Reading configuration file: ${configPath}, executionGroup: ${executionGroup}`);
   const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
   const configDir = dirname(resolvedConfigPath);
 
@@ -106,7 +134,19 @@ export async function getConfigDetails(configPath) {
   log(`  Original File: ${original}`);
 
   // Extract global prompts
-  const globalPrompts = jobs.modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
+  let globalPrompts = [];
+  let concatenate = [];
+
+  if (executionGroup) {
+     const filtered = jobs.modelExecutions
+      .find(exec => {
+        return exec.name === executionGroup
+      }) 
+
+      globalPrompts = filtered.executions
+      concatenate = filtered.concatenate
+
+  }
 
   return {
     resolvedConfigPath,
@@ -117,9 +157,13 @@ export async function getConfigDetails(configPath) {
     baseOutputPath,
     basePromptsPath,
     original,
-    globalPrompts
+    globalPrompts,
+    concatenate,
+
+    executionGroups: getGroupKeys(jobs.modelExecutions)
   };
 }
+
 /**
  * Parses a YAML or JSON configuration file.
  * 

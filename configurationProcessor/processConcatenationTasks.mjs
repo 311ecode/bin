@@ -5,10 +5,11 @@ import { generateTranslationOutputFilename } from './generateTranslationOutputFi
 import { concatenateVerses } from "../lib/verseManipulation/concatenateVerses.mjs";
 import { writeOutput } from "../writeOutput.mjs";
 
-export function processConcatenationTasks(jobs, baseOutputPath, original) {
-  if (jobs.concatenate && jobs.concatenate.length > 0) {
+export function processConcatenationTasks(jobs, baseOutputPath, original, concatenate, globalPrompts) {
+  if (concatenate.length > 0) {
+    
     log('\nProcessing concatenation tasks:');
-    for (const concatItem of jobs.concatenate) {
+      for (const concatItem of concatenate) {
       const outputFile = concatItem.file;
       const filesToConcatenate = [];
 
@@ -21,16 +22,20 @@ export function processConcatenationTasks(jobs, baseOutputPath, original) {
         }
       }
 
+      console.log({concatItem,globalPrompts},"FGGGG");       
+
       const language = concatItem.language;
-      const languageConfig = jobs.languages.find(lang => lang.language === language);
+      const languageConfig = globalPrompts.find(lang => lang.language === language);
+      console.log({languageConfig,language,globalPrompts},"F");
+      
       if (!languageConfig) {
-        console.error(`Error: Language "${language}" not found in the languages configuration.`);
+        console.error(`Error: Language1 "${language}" not found in the languages configuration.`);
         continue;
       }
       const { filePostfix } = languageConfig;
 
       for (const model of concatItem.models) {
-        const modelExecution = jobs.modelExecutions.find(exec => exec.name === model);
+        const modelExecution = globalPrompts.find(exec => exec.name === model);
         if (!modelExecution) {
           console.error(`Error: Model execution "${model}" not found in the configuration.`);
           continue;
