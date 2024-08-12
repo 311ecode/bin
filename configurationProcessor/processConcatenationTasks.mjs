@@ -22,17 +22,7 @@ export function processConcatenationTasks(jobs, baseOutputPath, original, concat
         }
       }
 
-      console.log({concatItem,globalPrompts},"FGGGG");       
-
       const language = concatItem.language;
-      const languageConfig = globalPrompts.find(lang => lang.language === language);
-      console.log({languageConfig,language,globalPrompts},"F");
-      
-      if (!languageConfig) {
-        console.error(`Error: Language1 "${language}" not found in the languages configuration.`);
-        continue;
-      }
-      const { filePostfix } = languageConfig;
 
       for (const model of concatItem.models) {
         const modelExecution = globalPrompts.find(exec => exec.name === model);
@@ -41,6 +31,7 @@ export function processConcatenationTasks(jobs, baseOutputPath, original, concat
           continue;
         }
         const { prefix } = modelExecution;
+        const filePostfix = jobs.languages.find(lang => lang.language === language).filePostfix;
         const fileName = generateTranslationOutputFilename(prefix, model, filePostfix);
         const filePath = join(baseOutputPath, fileName);
 

@@ -14,7 +14,9 @@ export async function chatWithOllama(model, message, endpoint = "http://localhos
     ...(() => extraDefaultPayloads && extraDefaultPayloads[model] || {})()
   };
 
-  log({ payload }, 'Ohhmm');
+  log({ payload }, 
+    // 'Ohhmm'
+  );
 
   try {
     const response = await fetch(url, {

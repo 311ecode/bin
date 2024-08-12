@@ -99,13 +99,13 @@ export async function processTranslation(params, singleRound = false) {
     log('Content preview:');
     log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
 
-    const prompt = directions + '\n' + chunk;
-    log('Chunk ready for translation: \n-----\n\n' + prompt + '\n\n-----\n');
+    const messageToAi = directions + '\n' + chunk;
+    log('Chunk ready for translation: \n-----\n\n' + messageToAi + '\n\n-----\n');
     log('Sending chunk to translation model...');
     const translationStartTime = Date.now();
     let translatedChunk = '';
     try {
-      translatedChunk = await chatWithOllama(params.model, prompt);
+      translatedChunk = await chatWithOllama(params.model, messageToAi);
     }
     catch (error) {
       log('Error in translation:', error, 'Ohhmm');

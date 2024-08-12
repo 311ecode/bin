@@ -21,16 +21,16 @@ export async function processConfig(args) {
 
   // Process model executions
   await processTranslationExecutions(
-    {
-      processModelExecutions : (jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted)=>{
-        console.log(
-          {
-            jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted
-          },"FIIIII FEEEE"
-        )
-        return true
-      }
-    }
+    // {
+    //   processModelExecutions : (jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted)=>{
+    //     console.log(
+    //       {
+    //         jobs, modelMap, baseOutputPath, originalMaxLine, executionProgress, allCompleted
+    //       },"FIIIII FEEEE"
+    //     )
+    //     return true
+    //   }
+    // }
   )(configPath, 'basictranslation');
   // Process concatenation tasks
   const {      
@@ -38,12 +38,13 @@ export async function processConfig(args) {
     baseOutputPath,
     original,
     executionGroups,
-    globalPrompts
+    globalPrompts,
+    concatenate
   } = await getConfigDetails(configPath, 'basictranslation');
 
   executionGroups.forEach(group => {
     console.log(`Processing group: ${group}`);
-    processConcatenationTasks(jobs, baseOutputPath, original, executionGroups, globalPrompts);
+    processConcatenationTasks(jobs, baseOutputPath, original, concatenate, globalPrompts);
   });
 }
 
