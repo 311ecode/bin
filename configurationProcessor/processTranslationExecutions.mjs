@@ -3,10 +3,10 @@ import { generateTranslationOutputFilename } from './generateTranslationOutputFi
 import { processConcatenationTasks } from "./processConcatenationTasks.mjs";
 import { logger } from "../lib/logger.mjs";
 import { getConfigDetails } from "../configutationProcessor.mjs";
-import { performTranslations } from "./processTranslationExecutions/performTranslations.mjs";
 import { logTranslationProgress } from "./processTranslationExecutions/logTranslationProgress.mjs";
 import { determineExecutionsToProcess } from "./processTranslationExecutions/determineExecutionsToProcess.mjs";
 import { calculateExecutionProgress } from "./processTranslationExecutions/calculateExecutionProgress.mjs";
+import { kindTranslateAlong } from "./processTranslationExecutions/kinds/kindTranslateAlong.mjs";
 
 export const log  = logger()();
 
@@ -44,6 +44,7 @@ export async function processTranslationExecutions(configPath, executionGroup) {
       basePromptsPath,
       original,
       globalPrompts,
+      executionType
     } = await getConfigDetails(configPath, executionGroup);
 
     const { languages, attemptToKeepTranslationsAtTheSameLine} = jobs
@@ -94,8 +95,10 @@ export async function processTranslationExecutions(configPath, executionGroup) {
         originalMaxLine, 
         promptPaths
       );
+      if (executionType === 'translateAlong') {
+        await kindTranslateAlong(originPath, outputPath, promptPaths, realName, maximumInputLength, attemptToKeepTranslationsAtTheSameLine, name, originalMaxLine);
+      }
 
-      await performTranslations( originPath, outputPath, promptPaths, realName, maximumInputLength, attemptToKeepTranslationsAtTheSameLine, name, originalMaxLine);
 
     }
 
