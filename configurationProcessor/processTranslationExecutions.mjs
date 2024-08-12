@@ -19,15 +19,18 @@ export async function processTranslationExecutions(configPath, executionGroup) {
       baseOutputPath,
       basePromptsPath,
       original,
-      globalPrompts
+      globalPrompts,
+      modelExecutions
     } = await getConfigDetails(configPath, executionGroup);
+
+    const { languages, attemptToKeepTranslationsAtTheSameLine} = jobs
   
     const originalMaxLine = getMaxLineNumber(join(baseOutputPath, original));
-    const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
+    // const attemptToKeepTranslationsAtTheSameLine = jobs.attemptToKeepTranslationsAtTheSameLine || false;
     allCompleted = true;
     const executionProgress = [];
     // Fetch all execution outputs
-    for (const execution of jobs.modelExecutions) {
+    for (const execution of modelExecutions) {
       if (!execution.name) continue; // Skip the prompts entry
       const { name, prefix, language } = execution;
       const modelDetails = modelMap.get(name);
@@ -36,7 +39,7 @@ export async function processTranslationExecutions(configPath, executionGroup) {
         continue;
       }
       let { sameLineFactor = 1 } = modelDetails;
-      const languageConfig = jobs.languages.find(lang => lang.language === language);
+      const languageConfig = languages.find(lang => lang.language === language);
       if (!languageConfig) {
         console.error(`Error: Language "${language}" not found in the languages configuration.`);
         continue;
@@ -79,7 +82,7 @@ export async function processTranslationExecutions(configPath, executionGroup) {
       const { name, prefix, language } = execution;
       const modelDetails = modelMap.get(name);
       const { realName, maximumInputLength } = modelDetails;
-      const languageConfig = jobs.languages.find(lang => lang.language === language);
+      const languageConfig = languages.find(lang => lang.language === language);
       const { filePostfix } = languageConfig;
 
       const originPath = join(baseOutputPath, original);

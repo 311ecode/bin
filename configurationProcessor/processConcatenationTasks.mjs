@@ -10,10 +10,12 @@ export async function processConcatenationTasks(configPath, executionGroup) {
     jobs,
     baseOutputPath,
     original,
+    concatenate,
+    modelExecutions
   } = await getConfigDetails(configPath, executionGroup);
-  if (jobs.concatenate && jobs.concatenate.length > 0) {
+  if (concatenate?.length > 0) {
     log('\nProcessing concatenation tasks:');
-    for (const concatItem of jobs.concatenate) {
+    for (const concatItem of concatenate) {
       const outputFile = concatItem.file;
       const filesToConcatenate = [];
 
@@ -35,7 +37,7 @@ export async function processConcatenationTasks(configPath, executionGroup) {
       const { filePostfix } = languageConfig;
 
       for (const model of concatItem.models) {
-        const modelExecution = jobs.modelExecutions.find(exec => exec.name === model);
+        const modelExecution = modelExecutions.find(exec => exec.name === model);
         if (!modelExecution) {
           console.error(`Error: Model execution "${model}" not found in the configuration.`);
           continue;

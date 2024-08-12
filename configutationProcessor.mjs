@@ -9,7 +9,6 @@ import { processTranslationExecutions } from './configurationProcessor/processTr
 
 export const log = logger()();
 
-
 /**
  * Parses a command-line argument representing a configuration file path.
  * 
@@ -32,13 +31,16 @@ export async function processConfig(args) {
     process.exit(1);
   }
 
-  const executionGroup = 'notYetImplemented';
+  const {resolvedConfigPath} = await resolveConfigPath(configPath);
+  const rawConfig = await readConfigFile(resolvedConfigPath);
+  const allExecutionGroups = await getAllExecutionGroups(rawConfig.jobs)
 
   // Process model executions
-  await processTranslationExecutions(configPath);
-  // Process concatenation tasks
+  for (const executionGroup of allExecutionGroups) {
+    await processTranslationExecutions(configPath, executionGroup);
+    await processConcatenationTasks(configPath, executionGroup);
+  }
 
-  await processConcatenationTasks(configPath, executionGroup);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -69,6 +71,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
  * @property {string} original - The original file path.
  * @property {Array<string>} globalPrompts - An array of global prompts.
  * @property {Array<object>} modelExecutions - An array of model executions.
+ * @property {string} executionType - The execution type to process.
+ * @property {Array<object>} concatenate - An array of concatenation tasks.
+ * @property {Array<string>} allExecutionGroups - An array of all execution groups.
  */
 
 /**
@@ -80,13 +85,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
  * @throws {Error} If there's an issue reading or processing the configuration file.
  */
 export async function getConfigDetails(configPath, executionGroup) {
-  const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
-  const configDir = dirname(resolvedConfigPath);
-
+  const { resolvedConfigPath, configDir } = resolveConfigPath(configPath);
   console.log(`Using configuration file: ${resolvedConfigPath}`);
-
   const config = await readConfigFile(resolvedConfigPath);
-
   const { jobs } = config;
 
   // Create a map of model names to their details
@@ -104,9 +105,16 @@ export async function getConfigDetails(configPath, executionGroup) {
   log(`  Base Prompts Path: ${basePromptsPath}`);
   log(`  Original File: ${original}`);
 
-  // Extract global prompts
-  const modelExecutions = jobs.modelExecutions;
-  const globalPrompts = modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
+  const modelExecutionsArray = jobs.modelExecutions.filter(exec => {
+    return exec.executionGroup === executionGroup;
+  })[0]
+
+  const modelExecutions = modelExecutionsArray.executions;
+  const executionType = modelExecutionsArray.executionType;
+  const concatenate = modelExecutionsArray.concatenate;
+  const allExecutionGroups = getAllExecutionGroups(jobs);
+  // const modelExecutions = jobs.modelExecutions;
+  const globalPrompts = modelExecutions && modelExecutions.find(exec => Array.isArray(exec.prompts))?.prompts || [];
   return {
     resolvedConfigPath,
     configDir,
@@ -117,9 +125,17 @@ export async function getConfigDetails(configPath, executionGroup) {
     basePromptsPath,
     original,
     globalPrompts,
-    modelExecutions
+    modelExecutions,
+    executionType,
+    concatenate,
+    allExecutionGroups
   };
 }
+
+function getAllExecutionGroups (jobs) {
+  return jobs.modelExecutions.map(exec => exec.executionGroup)
+}
+
 /**
  * Parses a YAML or JSON configuration file.
  * 
@@ -170,4 +186,10 @@ export async function readConfigFile(resolvedConfigPath) {
 
   return parseConfigFile(resolvedConfigPath, configContent);
 }
+
+  function resolveConfigPath(configPath) {
+    const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
+    const configDir = dirname(resolvedConfigPath);
+    return { resolvedConfigPath, configDir };
+  }
 
