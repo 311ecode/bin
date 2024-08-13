@@ -25,6 +25,7 @@ function parseConfigArgument(args) {
 
 export async function processConfig(args) {
   const configPath = parseConfigArgument(args);
+  const executionGroups = parseExecutionGroups(args);
   
   if (!configPath) {
     console.error('Please provide a configuration file using -c or --config');
@@ -33,7 +34,12 @@ export async function processConfig(args) {
 
   const {resolvedConfigPath} = await resolveConfigPath(configPath);
   const rawConfig = await readConfigFile(resolvedConfigPath);
-  const allExecutionGroups = await getAllExecutionGroups(rawConfig.jobs)
+  let allExecutionGroups = await getAllExecutionGroups(rawConfig.jobs)
+
+  // Filter execution groups if specified
+  if (executionGroups.length > 0) {
+    allExecutionGroups = allExecutionGroups.filter(group => executionGroups.includes(group));
+  }
 
   // Process model executions
   for (const executionGroup of allExecutionGroups) {
@@ -261,9 +267,21 @@ export async function readConfigFile(resolvedConfigPath) {
   return parseConfigFile(resolvedConfigPath, configContent);
 }
 
-  function resolveConfigPath(configPath) {
-    const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
-    const configDir = dirname(resolvedConfigPath);
-    return { resolvedConfigPath, configDir };
+function resolveConfigPath(configPath) {
+  const resolvedConfigPath = isAbsolute(configPath) ? configPath : resolve(process.cwd(), configPath);
+  const configDir = dirname(resolvedConfigPath);
+  return { resolvedConfigPath, configDir };
+}
+
+function parseExecutionGroups(args) {
+  const egIndex = args.findIndex(arg => arg === '-eg' || arg === '--executionGroups');
+  if (egIndex === -1) return [];
+  
+  const groups = [];
+  for (let i = egIndex + 1; i < args.length; i++) {
+    if (args[i].startsWith('-')) break;
+    groups.push(args[i]);
   }
+  return groups;
+}
 
