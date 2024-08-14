@@ -66,7 +66,6 @@ export async function processTranslationExecutions(configPath, executionGroup) {
       determineExecutionsToProcess(
         attemptToKeepTranslationsAtTheSameLine, 
         executionProgress, 
-        executionsToProcess
       );
 
     // Process the selected executions

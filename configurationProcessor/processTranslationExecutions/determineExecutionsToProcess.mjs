@@ -14,16 +14,20 @@ import { log } from "../processTranslationExecutions.mjs";
  * @function determineExecutionsToProcess
  * @param {boolean} attemptToKeepTranslationsAtTheSameLine - Whether to attempt to keep translations at the same line as the original.
  * @param {ExecutionProgressItem[]} executionProgress - An array of objects representing the progress of each execution.
- * @param {ExecutionProgressItem[]} executionsToProcess - The initial array of executions to process (may be empty).
  * @returns {ExecutionProgressItem[]} The filtered array of executions to process.
  */
-export function determineExecutionsToProcess(attemptToKeepTranslationsAtTheSameLine, executionProgress, executionsToProcess) {
+export function determineExecutionsToProcess(attemptToKeepTranslationsAtTheSameLine, executionProgress) {
+  let returningExecutions = [];
   if (attemptToKeepTranslationsAtTheSameLine) {
-    const minAdjustedProgress = Math.min(...executionProgress.map(e => e.adjustedProgress));
+    const minAdjustedProgress = Math.min(...executionProgress.filter(e=>!e.completed).map(e => e.adjustedProgress));
     log(`Minimum adjusted progress: ${minAdjustedProgress}`);
-    executionsToProcess = executionProgress.filter(e => e.adjustedProgress === minAdjustedProgress && !e.completed);
+    
+    returningExecutions = executionProgress.filter(e => e.adjustedProgress === minAdjustedProgress && !e.completed);
+
   } else {
-    executionsToProcess = executionProgress.filter(e => !e.completed);
+    returningExecutions = executionProgress.filter(e => !e.completed);
   }
-  return executionsToProcess;
+  returningExecutions = returningExecutions.length ? returningExecutions : executionProgress;
+
+  return returningExecutions;
 }

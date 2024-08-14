@@ -56,7 +56,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
 }
 
-
 /**
  * @typedef {Object} ModelInfo
  * @property {string} realName - The real name of the model.
