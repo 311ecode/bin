@@ -7,10 +7,10 @@ import { printHelp } from "./printHelp.mjs";
 import { processRanges } from "./lib/range/processRanges.mjs"; 
 import { processTranslation } from "./translation/processTranslation.mjs";
 import { writeOutput } from './writeOutput.mjs';
+import { ensureUniqueVerses } from "./translation/processTranslation.mjs";
 
 export async function processFiles(args) {
   let params = parseArguments(args);
-
   if (params.ranges.length > 0) {
     processRanges(params);
   } else if (params.concat.length >= 2) {
@@ -26,6 +26,11 @@ export async function processFiles(args) {
     writeOutput(result, params.output);
   } else if (params.origin && params.directionFiles.length > 0) {
     await processTranslation(params)();
+  } else if (params.ensureUnique.length > 0) {
+    for (const file of params.ensureUnique) {
+      await ensureUniqueVerses(file);
+      console.log(`Processed file: ${file}`);
+    }
   } else if (params.input) {
     let result = processFiles(params.input);
     writeOutput(result, params.output);

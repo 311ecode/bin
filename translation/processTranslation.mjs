@@ -303,8 +303,7 @@ export function parseVerses(content) {
  * @param {boolean} [options.keepLatest=true] - Whether to keep the latest occurrence of a verse (true) or the earliest (false).
  * @returns {Promise<void>}
  */
-export async function ensureUniqueVerses(filePath, options = {}) {
-  const { keepLatest = true } = options;
+export async function ensureUniqueVerses(filePath) {
 
   try {
     // Read the file content
