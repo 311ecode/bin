@@ -4,12 +4,12 @@ import { logger } from '../../lib/logger.mjs';
 
 const log = logger()();
 
-export async function chatWithOllama(model, message, endpoint = "http://localhost:11434") {
+export async function chatWithOllama(prompt, model, endpoint = "http://localhost:11434") {
   const url = `${endpoint}/api/generate`;
 
   const payload = {
     model: model,
-    prompt: message,
+    prompt: prompt,
     seed: 42,
     ...(() => extraDefaultPayloads && extraDefaultPayloads[model] || {})()
   };

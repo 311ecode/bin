@@ -1,158 +1,212 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync } from "fs";
 import { chatWithOllama } from "./drivers/ollama.mjs";
-import { writeOutput } from '../writeOutput.mjs';
-import { mergeVerses } from "../lib/range/processRanges.mjs"; 
+// import { writeOutput } from '../writeOutput.mjs';
+// import { mergeVerses } from "../lib/range/processRanges.mjs"; 
 import { logger } from "../lib/logger.mjs";
+import { translateAlong } from "./translateAlong.mjs";
+import { mergeVerses } from '../lib/range/processRanges.mjs';
 
-const log = logger()();
+export const log = logger()();
 
 /**
- * Process a translation task based on the provided parameters.
- * @async
+ * @typedef {'translateAlong'} TranslateStrategyType
+ */
+
+/**
+ * @typedef {Object} StrategyParams
+ * @property {string} originalContent - The original content to translate.
+ * @property {string} directions - The translation directions.
+ * @property {number} maxOrig - The maximum line number in the original content.
+ * @property {number} startLine - The line number to start from.
+ * @property {number} maxInputChunk - The maximum number of characters for each input chunk.
+ * @property {string} model - The name of the model to use for translation.
+ * @property {string} output - The path to the output file or 'stdout'.
+ * @property {number} startTime - The start time of the translation process.
+ */
+
+/**
+ * @typedef {Object} TranslationStrategyBase
+ * @property {TranslateStrategyType} type - The type of translation strategy.
+ */
+
+/**
+ * @typedef {(params: StrategyParams) => (singleRound: boolean) => Promise<void>} TranslationStrategyFunction
+ */
+
+/**
+ * @typedef {TranslationStrategyFunction & TranslationStrategyBase} TranslationStrategy
+ */
+
+/**
+ * Creates a function that processes a translation task based on the provided parameters.
  * @function processTranslation
  * @param {Object} params - The parameters for the translation process.
- * @param {string} params.origin - The path to the origin file.
- * @param {string} params.output - The path to the output file or 'stdout'.
- * @param {string[]} params.directionFiles - An array of paths to direction files.
- * @param {string} params.model - The name of the model to use for translation.
- * @param {number} params.maxInputChunk - The maximum number of characters for each input chunk.
- * @param {boolean} [singleRound=false] - Whether to stop after processing the first chunk.
- * @returns {Promise<void>} A promise that resolves when the translation process is complete.
+ * @param {boolean} singleRound - Whether to stop after processing the first chunk.
+ * @returns {function(TranslationStrategy=): Promise<void>} A function that takes a translation strategy and returns a Promise.
  */
-export async function processTranslation(params, singleRound = false) {
-  if (!params.origin || !params.output || params.directionFiles.length === 0) {
-    console.log('Please provide origin file, output file, and at least one direction file.');
-    return;
-  }
+export function processTranslation(params, singleRound=false) {
+  return async (translationStrategy=translateAlong) => {
+    if (!params.origin || !params.output || params.directionFiles.length === 0) {
+      console.log('Please provide origin file, output file, and at least one direction file.');
+      return;
+    }
+    
+    log('Starting translation process...');
+    logParameters(params);
   
-  log('Starting translation process...');
+    const originalContent = readFileSync(params.origin, 'utf8');
+    const directions = loadDirections(params.directionFiles);
+  
+    const maxOrig = getMaxLineNumber(params.origin);
+    const maxDestLine = getMaxLineNumber(params.output);
+    const startLine = Math.max(maxDestLine, 1);
+  
+    log(`Max line number in original file: ${maxOrig}`);
+    log(`Starting translation from line: ${startLine}`);
+  
+    const startTime = Date.now();
+  
+    // Execute the translation strategy
+
+    if (translationStrategy.type === 'translateAlong') {
+      await translationStrategy({
+        originalContent,
+        directions,
+        maxOrig,
+        startLine,
+        maxInputChunk: params.maxInputChunk,
+        model: params.model,
+        output: params.output,
+        startTime
+      })(singleRound);
+    }
+  
+    const totalElapsedTime = (Date.now() - startTime) / 1000;
+    log(`\nTranslation process completed. Total elapsed time: ${formatTime(totalElapsedTime)}`);
+    log('','Ohhmm');
+  }
+
+}
+
+// Helper functions
+function logParameters(params) {
   log(`Origin file: ${params.origin}`);
   log(`Output file: ${params.output}`);
   log(`Model: ${params.model}`);
   log(`Max input chunk: ${params.maxInputChunk} characters`);
+}
 
-  const originalContent = readFileSync(params.origin, 'utf8');
-  const originalLines = originalContent.split('\n');
-
-  const maxOrig = getMaxLineNumber(params.origin);
-  const maxDestLine = getMaxLineNumber(params.output);
-  let startLine = Math.max(maxDestLine, 1);
-
-  log(`Max line number in original file: ${maxOrig}`);
-  log(`Starting translation from line: ${startLine}`);
-
+function loadDirections(directionFiles) {
   let directions = '';
-  for (const dirFile of params.directionFiles) {
+  for (const dirFile of directionFiles) {
     directions += readFileSync(dirFile, 'utf8') + '\n';
     log(`Loaded direction file: ${dirFile}`);
   }
+  return directions;
+}
 
-  let translatedContent = '';
-  let chunkCount = 0;
-  const totalBytes = Buffer.byteLength(originalContent, 'utf8');
-  let processedBytes = 0;
-  let totalProcessingTime = 0;
-  let chunkTimes = [];
-  const startTime = Date.now();
+export function logProgress(processedBytes, totalBytes, chunk) {
+  const percentOfDocument = (processedBytes / totalBytes * 100).toFixed(2);
+  log(`Processed ${processedBytes} of ${totalBytes} bytes (${percentOfDocument}% of document)`);
+  log('Content preview:');
+  log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
+}
 
-  while (startLine <= maxOrig) {
-    const chunkStartTime = Date.now();
-    chunkCount++;
-    log(`\nProcessing chunk #${chunkCount}`);
+export function prepareChunk(originalLines, startLine, maxOrig, maxInputChunk, directions) {
+  let chunk = '';
+  let chunkSize = 0;
+  let endLine = startLine;
+  let sectionCount = 0;
 
-    let chunk = '';
-    let chunkSize = 0;
-    let endLine = startLine;
-    let sectionCount = 0;
+  while (endLine <= maxOrig && chunkSize + directions.length < maxInputChunk) {
+    const line = originalLines[endLine - 1];
 
-    while (endLine <= maxOrig && chunkSize + directions.length < params.maxInputChunk) {
-      const line = originalLines[endLine - 1];
-
-      if (chunkSize + line.length + directions.length > params.maxInputChunk) {
-        break;
-      }
-
-      chunk += line + '\n';
-      chunkSize += line.length + 1;
-      endLine++;
-
-      if (line.trim().endsWith('|---')) {
-        sectionCount++;
-      }
-    }
-
-    let lastSeparatorIndex = chunk.lastIndexOf('|---');
-    if (lastSeparatorIndex !== -1 && lastSeparatorIndex !== chunk.length - 5) {
-      let lineStart = chunk.lastIndexOf('\n', lastSeparatorIndex) + 1;
-      chunk = chunk.substring(0, lineStart);
-      endLine = startLine + chunk.split('\n').length - 1;
-    }
-
-    const chunkBytes = Buffer.byteLength(chunk, 'utf8');
-    processedBytes += chunkBytes;
-    const percentOfDocument = (processedBytes / totalBytes * 100).toFixed(2);
-
-    log(`Chunk size: ${chunkSize} characters, ${chunkBytes} bytes`);
-    log(`Lines in this chunk: ${startLine} to ${endLine - 1}`);
-    log(`Sections in this chunk: ${sectionCount}`);
-    log(`Processed ${processedBytes} of ${totalBytes} bytes (${percentOfDocument}% of document)`);
-    log('Content preview:');
-    log(chunk.split('\n').slice(0, 5).join('\n') + (chunk.split('\n').length > 5 ? '\n...' : ''));
-
-    const prompt = directions + '\n' + chunk;
-    log('Chunk ready for translation: \n-----\n\n' + prompt + '\n\n-----\n');
-    log('Sending chunk to translation model...');
-    const translationStartTime = Date.now();
-    let translatedChunk = '';
-    try {
-      translatedChunk = await chatWithOllama(params.model, prompt);
-    }
-    catch (error) {
-      log('Error in translation:', error, 'Ohhmm');
-      process.exit(1);
-    }
-    const translationTime = (Date.now() - translationStartTime) / 1000;
-    log(`Received translated chunk from model in ${translationTime.toFixed(2)} seconds`, 'Ohhmm');
-
-    const chunkProcessingTime = (Date.now() - chunkStartTime) / 1000;
-    totalProcessingTime += chunkProcessingTime;
-    chunkTimes.push(chunkProcessingTime);
-
-    const avgChunkTime = totalProcessingTime / chunkCount;
-    const estimatedTimeRemaining = avgChunkTime * ((maxOrig - endLine) / (endLine - startLine));
-    const charactersPerSecond = chunkSize / translationTime;
-
-    log(`Chunk processing time: ${chunkProcessingTime.toFixed(2)} seconds`);
-    log(`Average chunk processing time: ${avgChunkTime.toFixed(2)} seconds`);
-    log(`Estimated time remaining: ${formatTime(estimatedTimeRemaining)}`);
-    log(`Translation speed: ${charactersPerSecond.toFixed(2)} characters/second`);
-
-    translatedContent += translatedChunk + '\n';
-
-    log('Translated content preview:', translatedContent);
-
-    if (params.output !== 'stdout') {
-      log('Writing translated chunk to output file...');
-      let finalContent = translatedContent;
-      if (existsSync(params.output)) {
-        const existingContent = readFileSync(params.output, 'utf8');
-        finalContent = mergeVerses(existingContent, parseVerses(translatedContent));
-      }
-      writeOutput(finalContent, params.output);
-      log('Chunk written to output file');
-    }
-
-    startLine = endLine;
-
-    log(`Translated up to line ${startLine - 1} of ${maxOrig}`);
-    log(`Progress: ${((startLine - 1) / maxOrig * 100).toFixed(2)}%`);
-
-    if (singleRound) {
-      log('Single round translation completed. Stopping after first chunk.');
+    if (chunkSize + line.length + directions.length > maxInputChunk) {
       break;
+    }
+
+    chunk += line + '\n';
+    chunkSize += line.length + 1;
+    endLine++;
+
+    if (line.trim().endsWith('|---')) {
+      sectionCount++;
     }
   }
 
+  let lastSeparatorIndex = chunk.lastIndexOf('|---');
+  if (lastSeparatorIndex !== -1 && lastSeparatorIndex !== chunk.length - 5) {
+    let lineStart = chunk.lastIndexOf('\n', lastSeparatorIndex) + 1;
+    chunk = chunk.substring(0, lineStart);
+    endLine = startLine + chunk.split('\n').length - 1;
+  }
+
+  return { chunk, endLine, chunkSize, sectionCount };
+}
+
+export function logProcessingStats(chunkProcessingTime, chunkCount, totalProcessingTime, maxOrig, endLine, startLine) {
+  const avgChunkTime = totalProcessingTime / chunkCount;
+  const estimatedTimeRemaining = avgChunkTime * ((maxOrig - endLine) / (endLine - startLine));
+  log(`Chunk processing time: ${chunkProcessingTime.toFixed(2)} seconds`);
+  log(`Average chunk processing time: ${avgChunkTime.toFixed(2)} seconds`);
+  log(`Estimated time remaining: ${formatTime(estimatedTimeRemaining)}`);
+}
+
+export function updateProcessingStats(chunkSize, translationTime, totalProcessingTime, chunkTimes) {
+  const chunkProcessingTime = translationTime;
+  totalProcessingTime += chunkProcessingTime;
+  chunkTimes.push(chunkProcessingTime);
+  return chunkProcessingTime;
+}
+
+/**
+ * Merges new translations into existing content using the mergeVerses function.
+ * 
+ * @param {string} existingContent - The existing translated content, with verses separated by newlines.
+ * @param {string} newContent - The new translated content to be merged.
+ * @param {Object} [options] - Optional parameters for merging behavior.
+ * @param {boolean} [options.overwrite=true] - Whether to overwrite existing verses with new translations.
+ * @param {boolean} [options.appendNewVerses=true] - Whether to append verses that don't exist in the original content.
+ * @returns {string} The merged content with all verses.
+ */
+function mergeTranslations(existingContent, newContent, options = {}) {
+  const { 
+    overwrite = true, 
+    appendNewVerses = true 
+  } = options;
+
+  // Parse newContent string into an object of verse numbers and contents
+  /**
+   * @type {import("../lib/range/processRanges.mjs").VersesObjectPresentation}
+   */
+  const newVerses = {};
+  newContent.split('\n').forEach(line => {
+    const match = line.match(/^\|(\d+)\.\|/);
+    if (match) {
+      newVerses[parseInt(match[1])] = line;
+    }
+  });
+
+  // Use the existing mergeVerses function
+  return mergeVerses(existingContent, newVerses, {
+    overwrite,
+    appendNewVerses,
+    mergeStrategy: 'replace'
+  });
+}
+
+export function writeTranslatedChunk(translatedContent, outputPath) {
+  log('Writing translated chunk to output file...');
+  let finalContent = translatedContent;
+  if (existsSync(outputPath)) {
+    const existingContent = readFileSync(outputPath, 'utf8');
+    finalContent = mergeTranslations(existingContent, translatedContent);
+  }
+  writeFileSync(outputPath, finalContent);
+  log('Chunk written to output file');
+}
+
+export function logFinalStats(startTime, totalProcessingTime, chunkCount, processedBytes, chunkTimes) {
   const totalElapsedTime = (Date.now() - startTime) / 1000;
   const avgChunkTime = totalProcessingTime / chunkCount;
   const avgCharactersPerSecond = processedBytes / totalElapsedTime;
@@ -163,15 +217,20 @@ export async function processTranslation(params, singleRound = false) {
   log(`Fastest chunk: ${Math.min(...chunkTimes).toFixed(2)} seconds`);
   log(`Slowest chunk: ${Math.max(...chunkTimes).toFixed(2)} seconds`);
   log(`Average translation speed: ${avgCharactersPerSecond.toFixed(2)} characters/second`);
+}
 
-  if (params.output === 'stdout') {
-    log('Outputting complete translation to stdout:');
-    log(translatedContent);
-  } else {
-    log('Translation process completed. All chunks have been written to the output file.');
+export function translateChunk(prompt, model) {
+  return async (translator = chatWithOllama)=>{
+    let translatedChunk
+    try {
+      translatedChunk = await translator(prompt, model);
+    }
+    catch (error) {
+      log('Error in translation:', error, 'Ohhmm');
+      process.exit(1);
+    }
+    return translatedChunk;
   }
-
-  log('','Ohhmm');
 }
 
 /**

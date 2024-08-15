@@ -44,14 +44,14 @@ export async function performTranslations(originPath, outputPath, promptPaths, r
     };
 
     if (attemptToKeepTranslationsAtTheSameLine) {
-      await processTranslation(translationParams, true);
+      await processTranslation(translationParams, true)();
       log(`Chunk translation completed for ${name}`);
     }
 
     if (!attemptToKeepTranslationsAtTheSameLine) {
       // If we're not trying to keep translations at the same line, process the entire file
       while (getMaxLineNumber(outputPath) < originalMaxLine) {
-        await processTranslation(translationParams, true);
+        await processTranslation(translationParams, true)();
       }
     }
   } catch (error) {

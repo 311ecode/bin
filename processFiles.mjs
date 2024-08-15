@@ -25,7 +25,7 @@ export async function processFiles(args) {
     let result = convertFromVerse(content);
     writeOutput(result, params.output);
   } else if (params.origin && params.directionFiles.length > 0) {
-    await processTranslation(params);
+    await processTranslation(params)();
   } else if (params.input) {
     let result = processFiles(params.input);
     writeOutput(result, params.output);
