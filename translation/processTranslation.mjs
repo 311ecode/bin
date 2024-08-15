@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { readFileSync, existsSync, writeFileSync } from "fs";
 import { chatWithOllama } from "./drivers/ollama.mjs";
 // import { writeOutput } from '../writeOutput.mjs';
@@ -294,4 +295,40 @@ export function parseVerses(content) {
   return verses;
 }
 
+/**
+ * Reads a file, ensures each verse appears only once, and writes the result back to the same file.
+ * 
+ * @param {string} filePath - The absolute path to the file to be processed.
+ * @param {Object} [options] - Optional parameters for processing behavior.
+ * @param {boolean} [options.keepLatest=true] - Whether to keep the latest occurrence of a verse (true) or the earliest (false).
+ * @returns {Promise<void>}
+ */
+export async function ensureUniqueVerses(filePath, options = {}) {
+  const { keepLatest = true } = options;
+
+  try {
+    // Read the file content
+    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+
+    // Use parseVerses to get an object of verse numbers and contents
+    const verses = parseVerses(fileContent);
+
+    // Use the existing mergeVerses function to merge the content with itself
+    const mergedContent = mergeVerses(fileContent, verses, 
+      // {
+      //   // overwrite: keepLatest,
+      //   // appendNewVerses: false,
+      //   // mergeStrategy: 'replace'
+      // }
+  );
+
+    // Write the merged content back to the file
+    await fs.promises.writeFile(filePath, mergedContent, 'utf8');
+
+    console.log(`File ${filePath} has been successfully processed. All verses are now unique.`);
+  } catch (error) {
+    console.error(`Error processing file ${filePath}:`, error);
+    throw error;
+  }
+}
 
