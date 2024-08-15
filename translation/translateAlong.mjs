@@ -104,6 +104,3 @@ export const translateAlong = Object.assign(
   /** @type {TranslationStrategyBase} */
   ({ type: 'translateAlong' })
 );
-
-// Ensure the type property is recognized
-translateAlong.type;
