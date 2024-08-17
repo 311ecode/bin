@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.bashrc
 
 # Get the directory where this script is located
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,9 +65,15 @@ EOF
   echo "$full_response"
 }
 
-# Ensure the script is sourced in .bashrc
 ensureInBashrc() {
-  local scriptPath="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  local scriptPath
+  
+  if [ -n "$1" ]; then
+    scriptPath="$1"
+  else
+    scriptPath="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  fi
+
   local bashrc="$HOME/.bashrc"
   
   # Check if the script is already sourced in .bashrc
