@@ -7,10 +7,10 @@ verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Function to change to the directory of the script and run tclo
 verserTclo() {
-  cwd=$(pwd)
-  cd "$verserDir" || return
-  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation/ lib
-  cd "$cwd" || return
+  scwd
+  cd "$verserDir" 
+  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation lib test
+  btcwd
 }
 
 # getCurrentDirectory
@@ -28,6 +28,11 @@ btcwd() {
     return 1
   fi
   cd "$scwdv" || return 1
+}
+
+bintclo() {
+  verserTclo
+  btcwd
 }
 
 # Function to interact with the Ollama API
@@ -83,4 +88,6 @@ ensureInBashrc() {
   fi
 }
 
-ensureInBashrc
+currentFile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+ensureInBashrc "${currentFile}"
