@@ -10,6 +10,7 @@ import express from 'express';
 import { createVerseJson } from './lib/verseManipulation/concatenateVerses.mjs';
 import { env } from 'process';
 import fs from 'fs';
+import cors from 'cors';
 
 export const log = logger()();
 
@@ -30,6 +31,13 @@ function parseConfigArgument(args) {
 async function startApiServer(config, executionGroups, configPath) {
   const app = express();
   const port = parseInt(env.VERSER_API_PORT) || 3000;
+
+  // Configure CORS
+  app.use(cors({
+    origin: 'http://localhost:5173', // Allow requests from your Vite dev server
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
 
   app.get('/translations/:executionGroup', async (req, res) => {
     const { executionGroup } = req.params;
