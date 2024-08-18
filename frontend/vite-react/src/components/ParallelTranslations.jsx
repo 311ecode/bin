@@ -14,7 +14,6 @@ const ParallelTranslations = ({ executionGroup }) => {
   const [isLoading, setIsLoading] = useState(true);
   const listRef = useRef();
   const rowHeights = useRef({});
-  const rowRefs = useRef({});
 
   const CHUNK_SIZE = 100;
 
@@ -97,11 +96,10 @@ const ParallelTranslations = ({ executionGroup }) => {
     const models = Object.keys(visibleModels).filter(model => visibleModels[model]);
 
     return (
-      <div style={{ ...style, height: 'auto' }} ref={el => {
+      <div style={{ ...style, height: 'auto', width: '100%' }} ref={el => {
         if (el && el.getBoundingClientRect().height > 0) {
           setRowHeight(index, el.getBoundingClientRect().height);
         }
-        rowRefs.current[index] = el;
       }}>
         <Paper 
           elevation={3} 
@@ -129,9 +127,15 @@ const ParallelTranslations = ({ executionGroup }) => {
   if (isLoading && translations.length === 0) return <Typography>Loading...</Typography>;
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       <AppBar position="sticky" color="default">
-        <Toolbar>
+        <Toolbar sx={{ width: '100%' }}>
           <FormGroup row sx={{ flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
             {Object.keys(visibleModels).map(model => (
               <FormControlLabel
@@ -149,7 +153,7 @@ const ParallelTranslations = ({ executionGroup }) => {
           </FormGroup>
         </Toolbar>
       </AppBar>
-      <Box sx={{ flexGrow: 1, width: '100%' }}>
+      <Box sx={{ flexGrow: 1, width: '100%', overflow: 'hidden' }}>
         <AutoSizer>
           {({ height, width }) => (
             <InfiniteLoader
