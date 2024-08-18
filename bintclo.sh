@@ -1,5 +1,4 @@
 #!/bin/bash
-source ~/.bashrc
 
 # Get the directory where this script is located
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,6 +30,7 @@ btcwd() {
 }
 
 bintclo() {
+  scwd
   verserTclo
   btcwd
 }

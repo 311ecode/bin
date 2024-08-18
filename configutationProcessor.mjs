@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 import { logger } from './lib/logger.mjs';
 import { processConcatenationTasks } from './configurationProcessor/processConcatenationTasks.mjs';
 import { processTranslationExecutions } from './configurationProcessor/processTranslationExecutions.mjs';
+import express from 'express';
+import { createVerseJson } from './lib/verseManipulation/concatenateVerses.mjs';
+import { env } from 'process';
+import fs from 'fs';
 
 export const log = logger()();
 
@@ -23,32 +27,115 @@ function parseConfigArgument(args) {
   return args[configFlag + 1];
 }
 
+async function startApiServer(config, executionGroups, configPath) {
+  const app = express();
+  const port = parseInt(env.VERSER_API_PORT) || 3000;
+
+  app.get('/translations/:executionGroup', async (req, res) => {
+    const { executionGroup } = req.params;
+    if (!executionGroups.includes(executionGroup)) {
+      return res.status(404).json({ error: 'Execution group not found' });
+    }
+
+    try {
+      const configDetails = await getConfigDetails(configPath, executionGroup);
+      const { baseOutputPath, original, concatenate, modelExecutions, jobs } = configDetails;
+
+      if (!concatenate) {
+        return res.status(404).json({ error: 'Concatenation configuration not found for this execution group' });
+      }
+
+      const results = [];
+
+      for (const concatenateConfig of concatenate) {
+        const { file, original: includeOriginal, language, models } = concatenateConfig;
+        const filePaths = models.map(modelName => {
+          const execution = modelExecutions.find(exec => exec.name === modelName);
+          if (!execution) return null;
+          
+          const langConfig = jobs.languages.find(lang => lang.language === execution.language);
+          const fileName = `${modelName}${langConfig ? `.${langConfig.filePostfix}` : ''}.md`;
+          const filePath = resolve(baseOutputPath, fileName);
+          
+          if (fs.existsSync(filePath)) {
+            return filePath;
+          } else {
+            console.log(`File not found: ${filePath}`);
+            return null;
+          }
+        }).filter(Boolean);
+
+        if (includeOriginal) {
+          const originalPath = resolve(baseOutputPath, original);
+          if (fs.existsSync(originalPath)) {
+            filePaths.unshift(originalPath);
+          } else {
+            console.log(`Original file not found: ${originalPath}`);
+          }
+        }
+
+        const jsonData = await createVerseJson(filePaths);
+        results.push({
+          file,
+          language,
+          translations: jsonData
+        });
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error processing request:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/', (req, res) => {
+    const availableEndpoints = executionGroups.map(group => `/translations/${group}`);
+    res.json({
+      message: "Welcome to the Translations API",
+      availableEndpoints
+    });
+  });
+
+  app.listen(port, () => {
+    console.log(`API server listening at http://localhost:${port}`);
+    console.log("Available endpoints:");
+    console.log(`  GET /`);
+    executionGroups.forEach(group => {
+      console.log(`  GET /translations/${group}`);
+    });
+  });
+}
+
 export async function processConfig(args) {
   const configPath = parseConfigArgument(args);
   const executionGroups = parseExecutionGroups(args);
+  const isApiMode = args.includes('--api');
   
   if (!configPath) {
     console.error('Please provide a configuration file using -c or --config');
     process.exit(1);
   }
 
-  const {resolvedConfigPath} = await resolveConfigPath(configPath);
+  const { resolvedConfigPath } = await resolveConfigPath(configPath);
   const rawConfig = await readConfigFile(resolvedConfigPath);
-  let allExecutionGroups = await getAllExecutionGroups(rawConfig.jobs)
+  let allExecutionGroups = await getAllExecutionGroups(rawConfig.jobs);
 
   // Filter execution groups if specified
   if (executionGroups.length > 0) {
     allExecutionGroups = allExecutionGroups.filter(group => executionGroups.includes(group));
   }
 
-  // Process model executions
-  for (const executionGroup of allExecutionGroups) {
-    await processTranslationExecutions(configPath, executionGroup);
-    await processConcatenationTasks(configPath, executionGroup);
+  if (isApiMode) {
+    await startApiServer(rawConfig, allExecutionGroups, resolvedConfigPath);
+  } else {
+    // Process model executions
+    for (const executionGroup of allExecutionGroups) {
+      await processTranslationExecutions(resolvedConfigPath, executionGroup);
+      await processConcatenationTasks(resolvedConfigPath, executionGroup);
+    }
   }
-
 }
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   processConfig(process.argv.slice(2)).catch(error => {
     console.error('An error occurred:', error);
@@ -169,9 +256,6 @@ function parseConfigFile(resolvedConfigPath, configContent) {
   }
   return config;
 }
-
-
-
 
 
 /**
