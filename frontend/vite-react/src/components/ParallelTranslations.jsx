@@ -153,7 +153,12 @@ const ParallelTranslations = ({ executionGroup }) => {
           </FormGroup>
         </Toolbar>
       </AppBar>
-      <Box sx={{ flexGrow: 1, width: '100%', overflow: 'hidden' }}>
+      <Box sx={{ 
+        flexGrow: 1, 
+        width: '100%', 
+        overflow: 'hidden',
+        paddingRight: '20px', // Add padding to accommodate scrollbar
+      }}>
         <AutoSizer>
           {({ height, width }) => (
             <InfiniteLoader
@@ -171,7 +176,7 @@ const ParallelTranslations = ({ executionGroup }) => {
                     ref(list);
                     listRef.current = list;
                   }}
-                  width={width}
+                  width={width - 20} // Subtract padding to ensure scrollbar is visible
                   overscanCount={5}
                 >
                   {renderVerse}
