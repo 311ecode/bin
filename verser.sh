@@ -8,7 +8,7 @@ verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 verserTclo() {
   scwd
   cd "$verserDir" 
-  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation lib test
+  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation lib test frontend/vite-react/src  frontend/vite-react/package.json frontend/vite-react/vite.config.js frontend/vite-react/index.html
   btcwd
 }
 

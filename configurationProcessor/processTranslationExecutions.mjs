@@ -97,8 +97,6 @@ export async function processTranslationExecutions(configPath, executionGroup) {
       if (executionType === 'translateAlong') {
         await kindTranslateAlong(originPath, outputPath, promptPaths, realName, maximumInputLength, attemptToKeepTranslationsAtTheSameLine, name, originalMaxLine);
       }
-
-
     }
 
     // Call processConcatenationTasks after each round
