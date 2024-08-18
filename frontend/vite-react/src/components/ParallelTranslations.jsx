@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper, Typography,
-  AppBar, Toolbar, FormGroup, FormControlLabel, Checkbox, Box
+  Typography, AppBar, Toolbar, FormGroup, FormControlLabel, Checkbox, Box, Grid, Paper
 } from '@mui/material';
 
 const ParallelTranslations = ({ executionGroup }) => {
@@ -42,7 +41,7 @@ const ParallelTranslations = ({ executionGroup }) => {
     <Box sx={{ pb: 7 }}>
       <AppBar position="sticky" color="default" sx={{ top: 0, bottom: 'auto' }}>
         <Toolbar>
-          <FormGroup row>
+          <FormGroup row sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
             {models.map(model => (
               <FormControlLabel
                 key={model}
@@ -59,28 +58,29 @@ const ParallelTranslations = ({ executionGroup }) => {
           </FormGroup>
         </Toolbar>
       </AppBar>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Verse</TableCell>
-              {models.filter(model => visibleModels[model]).map(model => (
-                <TableCell key={model}>{model}</TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {translations.map((verse, index) => (
-              <TableRow key={verse.verse} sx={{ backgroundColor: index % 2 ? '#f5f5f5' : 'inherit' }}>
-                <TableCell>{verse.verse}</TableCell>
+      <Grid container spacing={2} sx={{ mt: 2 }}>
+        {translations.map((verse, index) => (
+          <Grid item xs={12} key={verse.verse}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 2, 
+                backgroundColor: index % 2 ? '#f5f5f5' : 'inherit'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>Verse {verse.verse}</Typography>
+              <Grid container spacing={2}>
                 {models.filter(model => visibleModels[model]).map(model => (
-                  <TableCell key={model}>{verse.translations[model]}</TableCell>
+                  <Grid item xs={12} sm={6} md={4} lg={3} key={model}>
+                    <Typography variant="subtitle1" color="textSecondary">{model}</Typography>
+                    <Typography variant="body1">{verse.translations[model]}</Typography>
+                  </Grid>
                 ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              </Grid>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
 };

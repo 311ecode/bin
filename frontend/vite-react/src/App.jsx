@@ -12,9 +12,9 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="xl">
-        <Box sx={{ my: 4 }}>
-          <Typography variant="h3" component="h1" gutterBottom>
+      <Container maxWidth={false} disableGutters>
+        <Box sx={{ my: 4, px: 2 }}>
+          <Typography variant="h3" component="h1" gutterBottom align="center">
             Parallel Translations
           </Typography>
           <ParallelTranslations executionGroup="basictranslation" />
