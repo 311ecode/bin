@@ -52,26 +52,46 @@ ollamaC() {
 {
     "model": "$model",
     "prompt": "$message",
-    "seed": 42
+    "stream": true
 }
 EOF
 )
 
-  response=$(curl -s -X POST "$url" \
+  curl -s -X POST "$url" \
       -H "Content-Type: application/json" \
-      -d "$payload")
-
-  full_response=""
-  while IFS= read -r line; do
+      -d "$payload" | while IFS= read -r line
+  do
       if [[ -n "$line" ]]; then
-          json_response=$(echo "$line" | jq -r '.response // empty')
-          full_response+="$json_response"
+          # Use grep to extract the "response" value
+          json_response=$(echo "$line" | grep -oP '(?<="response":")[^"]*')
+          if [[ -n "$json_response" ]]; then
+              # Process each character in the response
+              while IFS= read -r -n1 char; do
+                  if [[ "$char" == $'\n' ]]; then
+                      # Actual newline character
+                      echo
+                  elif [[ "$char" == '\' ]]; then
+                      # Potential escape sequence
+                      read -r -n1 next_char
+                      if [[ "$next_char" == 'n' ]]; then
+                          # '\n' sequence, print actual newline
+                          echo
+                      else
+                          # Not '\n', print both characters
+                          printf '%s%s' "$char" "$next_char"
+                      fi
+                  else
+                      # Regular character, print as-is
+                      printf '%s' "$char"
+                  fi
+              done < <(printf '%s' "$json_response")
+          fi
           
-          if [[ $(echo "$line" | jq -r '.done // false') == "true" ]]; then
+          # Check if "done" is true
+          if [[ "$line" == *'"done":true'* ]]; then
+              echo  # Print a final newline
               break
           fi
       fi
-  done <<< "$response"
-
-  echo "$full_response"
+  done
 }
