@@ -22,25 +22,29 @@ export const useVerseNavigation = (listRef, translations, isItemLoaded, loadMore
 
   useEffect(() => {
     if (targetVerse !== null) {
+      console.log(`Attempting to navigate to verse ${targetVerse}`);
       setIsNavigating(true);
       const verseIndex = targetVerse - 1;
       
       const attemptScroll = () => {
+        console.log(`Attempting to scroll to verse index ${verseIndex}`);
         if (scrollToVerse(verseIndex)) {
+          console.log(`Successfully scrolled to verse ${targetVerse}`);
           setIsNavigating(false);
         } else {
-          // Calculate the chunk size based on the current loaded verses
+          console.log(`Verse ${targetVerse} not loaded, loading more items`);
           const chunkSize = Math.max(100, translations.length);
           const startIndex = Math.floor(verseIndex / chunkSize) * chunkSize;
           const endIndex = Math.min(startIndex + chunkSize, totalItems);
 
+          console.log(`Loading verses from ${startIndex} to ${endIndex}`);
           loadMoreItems(startIndex, endIndex).then(() => {
-            // Check if the target verse is now loaded
             if (isItemLoaded(verseIndex)) {
+              console.log(`Verse ${targetVerse} now loaded, scrolling`);
               scrollToVerse(verseIndex);
               setIsNavigating(false);
             } else {
-              // If not, retry after a short delay
+              console.log(`Verse ${targetVerse} still not loaded, retrying`);
               setTimeout(attemptScroll, 100);
             }
           });

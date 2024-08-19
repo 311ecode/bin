@@ -8,6 +8,9 @@ import ParallelTranslations from './components/ParallelTranslations';
 
 const theme = createTheme();
 
+console.log("FUUU");
+
+
 function App() {
   return (
     <ThemeProvider theme={theme}>

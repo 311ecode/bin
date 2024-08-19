@@ -6,14 +6,23 @@
 startVerserFrontend() {
     scwd
     cd "$frontendDirReact"
-    startVerserTmuxSession "frontend" "npm run dev" "$frontendDirReact"
+    
+    if [ "$VSCODE_DEBUG" = "true" ]; then
+    # If running in debug mode, use 'exec' to replace the shell process with npm
+    exec npm run dev
+    else
+        # Otherwise, run as normal
+      startProcess "frontend" "frontendVite" "npm run dev" "$frontendDirReact"
+    fi
+
+    startProcess "frontend" "frontendVite" "npm run dev" "$frontendDirReact"
     btcwd
 }
 
 # Function to stop the frontend server
 # @description Stops the frontend server tmux session
 stopVerserFrontend() {
-  stopVerserTmuxSession "frontend" "$frontendDirReact"
+  stopProcess "frontend" "$frontendDirReact"
 }
 
 # Function to restart the frontend server
