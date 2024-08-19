@@ -2,6 +2,14 @@
 
 # Get the directory where this script is located
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bashDir="$verserDir/bash"
+processDir="$bashDir/process"
+source "$processDir/tmux.sh"
+source "$processDir/verser.sh"
+source "$processDir/marai.sh"
+source "$processDir/frontend.sh"
+
+frontendDirReact="$verserDir/frontend/vite-react"
 
 
 # Function to change to the directory of the script and run tclo
@@ -70,6 +78,49 @@ EOF
   echo "$full_response"
 }
 
+#!/bin/bash
+
+# Function to display help message
+# @description Displays usage information for Verser functions
+displayVerserHelp() {
+    echo "Usage:"
+    echo "  startVerserApi <verserDir> <configPath>"
+    echo "  startVerserCalculations <verserDir> <configPath>"
+    echo
+    echo "Parameters:"
+    echo "  verserDir   : Path to the Verser directory"
+    echo "  configPath  : Path to the configuration file"
+    echo
+    echo "Use -h or --help with any function to display this help message."
+}
+
+# Function to check if help is requested
+# @param {string} arg - The argument to check for help flag
+# @return 0 if help is not requested, 1 if help is requested
+checkVerserHelp() {
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+        displayVerserHelp
+        return 1
+    fi
+    return 0
+}
+
+# Function to check the number of parameters
+# @param {number} provided - The number of provided parameters
+# @param {number} required - The number of required parameters
+# @return 0 if the parameter count is correct, 1 otherwise
+checkVerserParams() {
+    if [ $1 -ne $2 ]; then
+        echo "Error: Incorrect number of parameters." >&2
+        displayVerserHelp
+        return 1
+    fi
+    return 0
+}
+
+
+# end of effecive real functionality 
+# this script makes sure it is sourced in .bashrc once it is run
 ensureInBashrc() {
   local scriptPath
   
@@ -89,5 +140,6 @@ ensureInBashrc() {
 }
 
 currentFile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-
 ensureInBashrc "${currentFile}"
+
+echo "Verser functions loaded."
