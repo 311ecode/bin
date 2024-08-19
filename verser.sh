@@ -10,6 +10,7 @@ source "$processDir/tmux.sh"
 source "$processDir/verser.sh"
 source "$processDir/marai.sh"
 source "$processDir/frontend.sh"
+source "$processDir/ollama.sh"
 
 frontendDirReact="$verserDir/frontend/vite-react"
 
@@ -45,40 +46,6 @@ bintclo() {
   btcwd
 }
 
-# Function to interact with the Ollama API
-chat_with_ollama() {
-  local model="$1"
-  local message="$2"
-  local endpoint="${3:-http://localhost:11434}"
-  local url="${endpoint}/api/generate"
-
-  payload=$(cat <<EOF
-{
-    "model": "$model",
-    "prompt": "$message",
-    "seed": 42
-}
-EOF
-)
-
-  response=$(curl -s -X POST "$url" \
-      -H "Content-Type: application/json" \
-      -d "$payload")
-
-  full_response=""
-  while IFS= read -r line; do
-      if [[ -n "$line" ]]; then
-          json_response=$(echo "$line" | jq -r '.response // empty')
-          full_response+="$json_response"
-          
-          if [[ $(echo "$line" | jq -r '.done // false') == "true" ]]; then
-              break
-          fi
-      fi
-  done <<< "$response"
-
-  echo "$full_response"
-}
 
 #!/bin/bash
 
