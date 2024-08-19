@@ -4,6 +4,8 @@
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bashDir="$verserDir/bash"
 processDir="$bashDir/process"
+
+# Source the other scripts
 source "$processDir/tmux.sh"
 source "$processDir/verser.sh"
 source "$processDir/marai.sh"
@@ -13,7 +15,7 @@ frontendDirReact="$verserDir/frontend/vite-react"
 
 
 # Function to change to the directory of the script and run tclo
-verserTclo() {
+tcloVerser() {
   scwd
   cd "$verserDir" 
   tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation lib test frontend/vite-react/src  frontend/vite-react/package.json frontend/vite-react/vite.config.js frontend/vite-react/index.html
