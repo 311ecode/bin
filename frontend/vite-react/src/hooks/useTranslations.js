@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const CHUNK_SIZE = 100;
+const CHUNK_SIZE = 5000;
 
 const useTranslations = (executionGroup) => {
   const [translations, setTranslations] = useState([]);

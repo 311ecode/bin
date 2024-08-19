@@ -29,16 +29,27 @@ export const useVerseNavigation = (listRef, translations, isItemLoaded, loadMore
         if (scrollToVerse(verseIndex)) {
           setIsNavigating(false);
         } else {
-          // Load all verses up to the target verse
-          loadMoreItems(0, verseIndex + 1).then(() => {
-            setTimeout(attemptScroll, 100); // Retry after a short delay
+          // Calculate the chunk size based on the current loaded verses
+          const chunkSize = Math.max(100, translations.length);
+          const startIndex = Math.floor(verseIndex / chunkSize) * chunkSize;
+          const endIndex = Math.min(startIndex + chunkSize, totalItems);
+
+          loadMoreItems(startIndex, endIndex).then(() => {
+            // Check if the target verse is now loaded
+            if (isItemLoaded(verseIndex)) {
+              scrollToVerse(verseIndex);
+              setIsNavigating(false);
+            } else {
+              // If not, retry after a short delay
+              setTimeout(attemptScroll, 100);
+            }
           });
         }
       };
 
       attemptScroll();
     }
-  }, [targetVerse, scrollToVerse, loadMoreItems]);
+  }, [targetVerse, scrollToVerse, loadMoreItems, isItemLoaded, translations, totalItems]);
 
   const navigateToVerse = useCallback((verse) => {
     if (verse !== targetVerse && verse > 0 && verse <= totalItems) {
