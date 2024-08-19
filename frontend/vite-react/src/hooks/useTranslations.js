@@ -10,7 +10,7 @@ const useTranslations = (executionGroup) => {
 
   const loadMoreItems = useCallback((startIndex, stopIndex) => {
     setIsLoading(true);
-    return fetch(`http://localhost:33333/translations/${executionGroup}?start=${startIndex}&end=${stopIndex}`)
+    return fetch(`${import.meta.env.VITE_API_URL}/translations/${executionGroup}?start=${startIndex}&end=${stopIndex}`)
       .then(response => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.json();
