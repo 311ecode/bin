@@ -10,7 +10,7 @@ import useTranslations from '../hooks/useTranslations';
 
 const ParallelTranslations = ({ executionGroup }) => {
   const [visibleModels, setVisibleModels] = useState({});
-  const [initialVerse, setInitialVerse] = useState(null);
+  const [targetVerse, setTargetVerse] = useState(null);
   const listRef = useRef();
   const rowHeights = useRef({});
   const theme = useTheme();
@@ -29,7 +29,7 @@ const ParallelTranslations = ({ executionGroup }) => {
     const urlParams = new URLSearchParams(window.location.search);
     const verse = parseInt(urlParams.get('verse'));
     if (!isNaN(verse) && verse > 0) {
-      setInitialVerse(verse - 1); // Adjust for zero-based index
+      setTargetVerse(verse);
     }
   }, []);
 
@@ -39,27 +39,65 @@ const ParallelTranslations = ({ executionGroup }) => {
         .reduce((acc, model) => ({ ...acc, [model]: true }), {});
       setVisibleModels(initialVisibleModels);
     }
-  }, [translations, visibleModels]);
+  }, [translations]);
+
+  const scrollToVerseWithContext = useCallback((verseIndex) => {
+    if (listRef.current) {
+      const list = listRef.current;
+      const totalHeight = list.props.height;
+      let accumulatedHeight = 0;
+      let targetOffset = 0;
+
+      for (let i = 0; i < verseIndex; i++) {
+        accumulatedHeight += rowHeights.current[i] || 100;
+      }
+      targetOffset = accumulatedHeight - (totalHeight / 2) + ((rowHeights.current[verseIndex] || 100) / 2);
+      targetOffset = Math.max(0, Math.min(targetOffset, list.props.itemCount * 100 - totalHeight));
+
+      list.scrollTo(targetOffset);
+      return true;
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
-    if (initialVerse !== null && listRef.current) {
-      scrollToVerseWithContext(initialVerse);
-    }
-  }, [initialVerse, translations]);
+    if (targetVerse !== null && translations.length > 0) {
+      const verseIndex = targetVerse - 1;
+      let attempts = 0;
+      const maxAttempts = 50; // Adjust as needed
 
-  const handleModelToggle = (model) => {
+      const attemptScroll = () => {
+        if (attempts >= maxAttempts) {
+          console.error('Failed to scroll to verse after maximum attempts');
+          return;
+        }
+
+        if (isItemLoaded(verseIndex)) {
+          const success = scrollToVerseWithContext(verseIndex);
+          if (success) {
+            return;
+          }
+        } else {
+          loadMoreItems(verseIndex, verseIndex + 20);
+        }
+
+        attempts++;
+        setTimeout(attemptScroll, 100);
+      };
+
+      attemptScroll();
+    }
+  }, [targetVerse, translations, isItemLoaded, loadMoreItems, scrollToVerseWithContext]);
+
+  const handleModelToggle = useCallback((model) => {
     setVisibleModels(prev => {
       const newVisibleModels = { ...prev, [model]: !prev[model] };
-      setTimeout(() => {
-        if (listRef.current) {
-          listRef.current.resetAfterIndex(0);
-        }
-      }, 0);
+      if (listRef.current) {
+        listRef.current.resetAfterIndex(0);
+      }
       return newVisibleModels;
     });
-  };
-
-  const getItemSize = index => rowHeights.current[index] || 100;
+  }, []);
 
   const setRowHeight = useCallback((index, size) => {
     if (rowHeights.current[index] !== size) {
@@ -70,6 +108,10 @@ const ParallelTranslations = ({ executionGroup }) => {
     }
   }, []);
 
+  const handleVerseNavigation = useCallback((verse) => {
+    setTargetVerse(verse);
+  }, []);
+
   const renderVerse = useCallback(({ index, style }) => (
     <VerseItem
       verse={translations[index]}
@@ -77,39 +119,9 @@ const ParallelTranslations = ({ executionGroup }) => {
       style={style}
       visibleModels={visibleModels}
       setRowHeight={setRowHeight}
+      isTargeted={index === targetVerse - 1}
     />
-  ), [translations, visibleModels, setRowHeight]);
-
-  const scrollToVerseWithContext = useCallback((verseIndex) => {
-    if (listRef.current) {
-      const list = listRef.current;
-      const totalHeight = list.props.height;
-      let accumulatedHeight = 0;
-      let targetOffset = 0;
-
-      // Calculate the offset to center the target verse
-      for (let i = 0; i < verseIndex; i++) {
-        accumulatedHeight += getItemSize(i);
-      }
-      targetOffset = accumulatedHeight - (totalHeight / 2) + (getItemSize(verseIndex) / 2);
-
-      // Ensure we don't scroll past the start or end of the list
-      targetOffset = Math.max(0, Math.min(targetOffset, list.props.itemCount * getItemSize(0) - totalHeight));
-
-      list.scrollTo(targetOffset);
-    }
-  }, [getItemSize]);
-
-  const handleVerseNavigation = useCallback((verse) => {
-    const verseIndex = verse - 1; // Convert to 0-based index
-    scrollToVerseWithContext(verseIndex);
-  }, [scrollToVerseWithContext]);
-
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.resetAfterIndex(0);
-    }
-  }, [isMobile]);
+  ), [translations, visibleModels, setRowHeight, targetVerse]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (isLoading && translations.length === 0) return <Typography>Loading...</Typography>;
@@ -134,7 +146,7 @@ const ParallelTranslations = ({ executionGroup }) => {
                 <List
                   height={height}
                   itemCount={totalItems}
-                  itemSize={getItemSize}
+                  itemSize={(index) => rowHeights.current[index] || 100}
                   onItemsRendered={onItemsRendered}
                   ref={(list) => {
                     ref(list);

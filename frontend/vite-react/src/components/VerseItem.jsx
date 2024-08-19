@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Paper, Typography, Grid, Divider, useMediaQuery, useTheme } from '@mui/material';
 
-const VerseItem = ({ verse, index, style, visibleModels, setRowHeight }) => {
+const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted }) => {
   const ref = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -24,8 +24,9 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight }) => {
         elevation={3} 
         sx={{ 
           p: 2, 
-          backgroundColor: index % 2 ? '#f5f5f5' : 'inherit',
+          backgroundColor: isTargeted ? theme.palette.action.selected : (index % 2 ? '#f5f5f5' : 'inherit'),
           width: '100%',
+          border: isTargeted ? `2px solid ${theme.palette.primary.main}` : 'none',
         }}
       >
         <Typography variant="h6" gutterBottom>Verse {verse.verse}</Typography>
