@@ -189,11 +189,122 @@ displayTmuxHelp() {
     displayCommonTmuxInfo
 }
 
-setup_tmux_config() {
+tmuxUtils() {
+    local content="
+TMUX UTILITIES
+
+NAME
+    tmuxUtils - A collection of utility functions for managing tmux sessions
+
+DESCRIPTION
+    This set of functions provides a convenient interface for starting, stopping,
+    and managing tmux sessions, particularly useful for running background processes.
+
+FUNCTIONS
+
+    startProcess KIND NAME COMMAND
+        Start a process in a new tmux session.
+        Arguments:
+            KIND - Type of process (e.g., 'verser')
+            NAME - Name of the process
+            COMMAND - The command to run in the session
+
+    stopProcess KIND NAME
+        Stop a specific tmux session.
+        Arguments:
+            KIND - Type of process
+            NAME - Name of the process
+
+    stopKindTmuxSessions KIND
+        Stop all tmux sessions of a specific kind.
+        Arguments:
+            KIND - Type of process to stop
+
+    listKindTmuxSessions KIND
+        List all tmux sessions of a specific kind.
+        Arguments:
+            KIND - Type of process to list
+
+    listTmuxSessions
+        List all active tmux sessions.
+
+    stopAllTmuxSessions
+        Stop all active tmux sessions.
+
+    startTmuxSession SESSION_NAME COMMAND
+        Start a new tmux session with a given name and command.
+        Arguments:
+            SESSION_NAME - Name for the new session
+            COMMAND - The command to run in the session
+
+    stopTmuxSession SESSION_NAME
+        Stop a specific tmux session by name.
+        Arguments:
+            SESSION_NAME - Name of the session to stop
+
+    attachTmuxSession SESSION_NAME
+        Attach to an existing tmux session.
+        Arguments:
+            SESSION_NAME - Name of the session to attach to
+
+    displayTmuxHelp
+        Display helpful information about tmux commands.
+
+    setup_tmux_config
+        Set up a basic tmux configuration file (~/.tmux.conf) with mouse support.
+
+USAGE EXAMPLES
+
+    Start a new process:
+        startProcess verser my_process 'python my_script.py'
+
+    Stop a specific process:
+        stopProcess verser my_process
+
+    List all 'verser' sessions:
+        listKindTmuxSessions verser
+
+    Stop all 'verser' sessions:
+        stopKindTmuxSessions verser
+
+    List all tmux sessions:
+        listTmuxSessions
+
+    Stop all tmux sessions:
+        stopAllTmuxSessions
+
+    Start a custom tmux session:
+        startTmuxSession my_session 'top'
+
+    Stop a custom tmux session:
+        stopTmuxSession my_session
+
+    Attach to a tmux session:
+        attachTmuxSession my_session
+
+    Display tmux help:
+        displayTmuxHelp
+
+    Set up tmux configuration:
+        setup_tmux_config
+
+NOTES
+    - Make sure tmux is installed on your system before using these functions.
+    - Use 'Ctrl-b, d' to detach from a tmux session without stopping it.
+    - The setup_tmux_config function creates a basic ~/.tmux.conf file with mouse support.
+
+SEE ALSO
+    tmux(1), bash(1)
+"
+
+    echo "$content" | less
+}
+
+setupTmuxConfig() {
     local tmux_conf="$HOME/.tmux.conf"
     
     if [ -f "$tmux_conf" ]; then
-        echo "~/.tmux.conf already exists. No changes made."
+        echo "~/.tmux.conf already exists. No changes made." > /dev/null
     else
         echo "Creating ~/.tmux.conf with mouse scrolling configuration..."
         cat << EOF > "$tmux_conf"
