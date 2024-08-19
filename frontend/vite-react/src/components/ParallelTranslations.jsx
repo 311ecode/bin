@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Typography, AppBar, Toolbar, Box, useMediaQuery, useTheme } from '@mui/material';
+import { Typography, AppBar, Toolbar, Box, useMediaQuery, useTheme, CircularProgress } from '@mui/material';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import InfiniteLoader from 'react-window-infinite-loader';
@@ -7,10 +7,10 @@ import VerseItem from './VerseItem';
 import ModelVisibilityControls from './ModelVisibilityControls';
 import VerseNavigation from './VerseNavigation';
 import useTranslations from '../hooks/useTranslations';
+import { useVerseNavigation } from '../hooks/useVerseNavigation';
 
 const ParallelTranslations = ({ executionGroup }) => {
   const [visibleModels, setVisibleModels] = useState({});
-  const [targetVerse, setTargetVerse] = useState(null);
   const listRef = useRef();
   const rowHeights = useRef({});
   const theme = useTheme();
@@ -25,13 +25,13 @@ const ParallelTranslations = ({ executionGroup }) => {
     isItemLoaded 
   } = useTranslations(executionGroup);
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const verse = parseInt(urlParams.get('verse'));
-    if (!isNaN(verse) && verse > 0) {
-      setTargetVerse(verse);
-    }
-  }, []);
+  const { targetVerse, navigateToVerse, isNavigating } = useVerseNavigation(
+    listRef,
+    translations,
+    isItemLoaded,
+    loadMoreItems,
+    totalItems
+  );
 
   useEffect(() => {
     if (translations.length > 0 && Object.keys(visibleModels).length === 0) {
@@ -40,54 +40,6 @@ const ParallelTranslations = ({ executionGroup }) => {
       setVisibleModels(initialVisibleModels);
     }
   }, [translations]);
-
-  const scrollToVerseWithContext = useCallback((verseIndex) => {
-    if (listRef.current) {
-      const list = listRef.current;
-      const totalHeight = list.props.height;
-      let accumulatedHeight = 0;
-      let targetOffset = 0;
-
-      for (let i = 0; i < verseIndex; i++) {
-        accumulatedHeight += rowHeights.current[i] || 100;
-      }
-      targetOffset = accumulatedHeight - (totalHeight / 2) + ((rowHeights.current[verseIndex] || 100) / 2);
-      targetOffset = Math.max(0, Math.min(targetOffset, list.props.itemCount * 100 - totalHeight));
-
-      list.scrollTo(targetOffset);
-      return true;
-    }
-    return false;
-  }, []);
-
-  useEffect(() => {
-    if (targetVerse !== null && translations.length > 0) {
-      const verseIndex = targetVerse - 1;
-      let attempts = 0;
-      const maxAttempts = 50; // Adjust as needed
-
-      const attemptScroll = () => {
-        if (attempts >= maxAttempts) {
-          console.error('Failed to scroll to verse after maximum attempts');
-          return;
-        }
-
-        if (isItemLoaded(verseIndex)) {
-          const success = scrollToVerseWithContext(verseIndex);
-          if (success) {
-            return;
-          }
-        } else {
-          loadMoreItems(verseIndex, verseIndex + 20);
-        }
-
-        attempts++;
-        setTimeout(attemptScroll, 100);
-      };
-
-      attemptScroll();
-    }
-  }, [targetVerse, translations, isItemLoaded, loadMoreItems, scrollToVerseWithContext]);
 
   const handleModelToggle = useCallback((model) => {
     setVisibleModels(prev => {
@@ -100,17 +52,13 @@ const ParallelTranslations = ({ executionGroup }) => {
   }, []);
 
   const setRowHeight = useCallback((index, size) => {
-    if (rowHeights.current[index] !== size) {
-      rowHeights.current[index] = size;
-      if (listRef.current) {
-        listRef.current.resetAfterIndex(index);
-      }
+    rowHeights.current[index] = size;
+    if (listRef.current) {
+      listRef.current.resetAfterIndex(index);
     }
   }, []);
 
-  const handleVerseNavigation = useCallback((verse) => {
-    setTargetVerse(verse);
-  }, []);
+  const getItemSize = useCallback((index) => rowHeights.current[index] || 100, []);
 
   const renderVerse = useCallback(({ index, style }) => (
     <VerseItem
@@ -129,9 +77,12 @@ const ParallelTranslations = ({ executionGroup }) => {
   return (
     <Box sx={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppBar position="sticky" color="default">
-        <Toolbar sx={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+        <Toolbar sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <ModelVisibilityControls visibleModels={visibleModels} onModelToggle={handleModelToggle} />
-          <VerseNavigation onNavigate={handleVerseNavigation} totalVerses={totalItems} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {isNavigating && <CircularProgress size={24} />}
+            <VerseNavigation onNavigate={navigateToVerse} totalVerses={totalItems} />
+          </Box>
         </Toolbar>
       </AppBar>
       <Box sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', paddingRight: '20px' }}>
@@ -146,7 +97,7 @@ const ParallelTranslations = ({ executionGroup }) => {
                 <List
                   height={height}
                   itemCount={totalItems}
-                  itemSize={(index) => rowHeights.current[index] || 100}
+                  itemSize={getItemSize}
                   onItemsRendered={onItemsRendered}
                   ref={(list) => {
                     ref(list);
