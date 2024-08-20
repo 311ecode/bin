@@ -3,7 +3,7 @@
 # Get the directory where this script is located
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bashDir="$verserDir/bash"
-processDir="$bashDir/process"
+processDir="$bashDir"
 
 # Source the other scripts
 while IFS= read -r -d '' script; do

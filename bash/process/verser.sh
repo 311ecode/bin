@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 generateVerserIdentifier() {
     local processName=$1
     shift

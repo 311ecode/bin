@@ -2,8 +2,12 @@ import { fileURLToPath } from "url";
 import { processConcatenationTasks } from "./processConcatenationTasks.mjs";
 import { processTranslationExecutions } from "./processTranslationExecutions.mjs";
 import { startApiServer } from "./startApiServer.mjs";
-import { parseConfigArgument, parseExecutionGroups, resolveConfigPath, readConfigFile, getAllExecutionGroups } from "../configutationProcessor.mjs";
-
+import { 
+  parseConfigArgument, 
+  parseExecutionGroups, 
+  resolveConfigPath, 
+  readConfigFile, 
+  getAllExecutionGroups } from "../configutationProcessor.mjs";
 
 export async function processConfig(args) {
   const configPath = parseConfigArgument(args);
@@ -36,6 +40,7 @@ export async function processConfig(args) {
     }
   }
 }
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   processConfig(process.argv.slice(2)).catch(error => {
     console.error('An error occurred:', error);

@@ -48,10 +48,7 @@ tcloVerserTest() {
   tcloVerser "${verser_test_paths[@]}"
 }
 
-
 # Function to run tclo with only bash paths
 tcloVerserBash() {
   tcloVerser "${bash_paths[@]}"
 }
-
-
