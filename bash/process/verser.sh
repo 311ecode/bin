@@ -15,10 +15,6 @@ startVerserProcess() {
     local command="node \"$verserDir/configutationProcessor.mjs\" -c \"$configPath\" $mode"
     local identifier=$(generateVerserIdentifier "$processName" "$configPath" "$mode")
     startProcess "verser" "$identifier" "$command"
-    
-    echo "To list all Verser tmux sessions: listVerserTmuxSessions"
-    echo "To attach to this session: tmux attach-session -t $identifier"
-    echo "To stop this session: stopVerserProcess $processName \"$configPath\" $mode"
 }
 
 stopVerserProcess() {

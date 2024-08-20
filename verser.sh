@@ -6,22 +6,13 @@ bashDir="$verserDir/bash"
 processDir="$bashDir/process"
 
 # Source the other scripts
-source "$processDir/tmux.sh"
-source "$processDir/verser.sh"
-source "$processDir/marai.sh"
-source "$processDir/frontend.sh"
-source "$processDir/ollama.sh"
+while IFS= read -r -d '' script; do
+  source "$script"
+done < <(find "$processDir" -type f -name "*.sh" -print0)
+
 
 frontendDirReact="$verserDir/frontend/vite-react"
 
-
-# Function to change to the directory of the script and run tclo
-tcloVerser() {
-  scwd
-  cd "$verserDir" 
-  tclo verser.mjs processFiles.mjs jsconfig.json eslint.config.mjs translation lib test frontend/vite-react/src  frontend/vite-react/package.json frontend/vite-react/vite.config.js frontend/vite-react/index.html
-  btcwd
-}
 
 # getCurrentDirectory
 # Stores the current working directory in a global variable `scwdv`.
@@ -87,6 +78,9 @@ checkVerserParams() {
     return 0
 }
 
+everser() {
+  e $verserDir
+}
 
 # end of effecive real functionality 
 # this script makes sure it is sourced in .bashrc once it is run

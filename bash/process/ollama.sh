@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Function to list all Ollama models
 ollamaListModels() {
     local endpoint="${1:-http://localhost:11434}"

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # Function to start the frontend server in a tmux session
 # @description Starts the frontend server using npm run dev in a tmux session
 startVerserFrontend() {
