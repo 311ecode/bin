@@ -17,11 +17,12 @@ export default defineConfig({
     sourcemap: true,  // Enable source maps for development server
   },
 
-  resolve: {
-    alias: {
-      '@mainProject': path.resolve(__dirname, './mainProject'),
-    }
-  }
+  // resolve: {
+  //   alias: {
+  //     '@mainProjectLib': path.resolve(__dirname, './mainProject/lib'),
+  //     '@mainProjectTranslation': path.resolve(__dirname, './mainProject/translation'),
+  //   }
+  // }
 
 });
 

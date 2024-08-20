@@ -35,20 +35,159 @@ readPid() {
 # @param {string} kind - Kind of process (e.g., "verser")
 # @param {string} name - Name of the process
 # @param {string} command - The command to run
+
 startProcess() {
     local kind=$1
     local name=$2
     local command=$3
     local sessionName="${kind}_${name}"
+    local timestamp=$(date +"%Y%m%d_%H%M%S")
+    local logFile="/tmp/${sessionName}_${timestamp}.log"
 
     echo "Starting $kind process '$name' in tmux..."
-    tmux new-session -d -s "$sessionName" "$command"
+    tmux new-session -d -s "$sessionName" "($command) 2>&1 | tee $logFile"
     local pid=$(tmux list-panes -t "$sessionName" -F '#{pane_pid}')
     
     writePid "$sessionName" $pid
     echo "$kind process '$name' started in tmux session '$sessionName' with PID: $pid"
+    echo "Log file: $logFile"
     echo "To attach to this session, run: tmux attach-session -t $sessionName"
+    echo "To view logs in real-time, run: tail -f $logFile"
 }
+
+selectKind() {
+    local kinds=($(tmux list-sessions -F '#{session_name}' 2>/dev/null | cut -d'_' -f1 | sort -u))
+    local logKinds=($(find /tmp -maxdepth 1 -name '*.log' -printf '%f\n' 2>/dev/null | cut -d'_' -f1 | sort -u))
+    kinds+=(${logKinds[@]})
+    kinds=($(printf "%s\n" "${kinds[@]}" | sort -u))
+    kinds+=("all")
+
+    if [ ${#kinds[@]} -eq 1 ]; then
+        echo "No processes or logs found."
+        return 1
+    fi
+
+    echo "Select a process kind:"
+    select kind in "${kinds[@]}"; do
+        if [ -n "$kind" ]; then
+            echo "$kind"
+            return 0
+        else
+            echo "Invalid selection. Please try again."
+        fi
+    done
+}
+
+# Updated checkProcessStatus function
+checkProcessStatus() {
+    local kind=$1
+    local name=$2
+
+    if [ -z "$kind" ]; then
+        kind=$(selectKind)
+        [ $? -ne 0 ] && return 1
+    fi
+
+    if [ -z "$name" ]; then
+        local sessions=($(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep "^${kind}_"))
+        local logFiles=($(ls /tmp/${kind}_*.log 2>/dev/null))
+        local allProcesses=($(printf "%s\n" "${sessions[@]}" "${logFiles[@]}" | sort -u))
+
+        if [ ${#allProcesses[@]} -eq 0 ]; then
+            echo "No $kind processes found (running or terminated)."
+            return
+        fi
+
+        echo "Select a process to check:"
+        select process in "${allProcesses[@]}"; do
+            if [ -n "$process" ]; then
+                if [[ $process == /tmp/* ]]; then
+                    name=$(basename "$process" | cut -d'_' -f2)
+                else
+                    name=${process#${kind}_}
+                fi
+                break
+            else
+                echo "Invalid selection. Please try again."
+            fi
+        done
+    fi
+
+    local sessionName="${kind}_${name}"
+
+    if tmux has-session -t "$sessionName" 2>/dev/null; then
+        echo "$kind process '$name' is running."
+        local pid=$(tmux list-panes -t "$sessionName" -F '#{pane_pid}')
+        echo "PID: $pid"
+        echo "To view logs, run: viewProcessLogs $kind $name"
+    else
+        echo "$kind process '$name' is not running."
+        local latestLog=$(ls -t /tmp/${sessionName}_*.log 2>/dev/null | head -n1)
+        if [ -n "$latestLog" ]; then
+            echo "Process has terminated. Last 10 lines of log:"
+            tail -n 10 "$latestLog"
+            echo "To view full logs, run: viewProcessLogs $kind $name"
+        else
+            echo "No log file found."
+        fi
+    fi
+}
+
+# Updated listAllProcesses function
+listAllProcesses() {
+    echo "Running processes:"
+    echo "-----------------"
+    local runningFound=false
+    while read -r session; do
+        local pid=$(tmux list-panes -t "$session" -F '#{pane_pid}')
+        echo "$session (PID: $pid)"
+        runningFound=true
+    done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+    
+    if [ "$runningFound" = false ]; then
+        echo "No running processes found."
+    fi
+
+    echo
+    echo "Log files:"
+    echo "----------"
+    local logFound=false
+    while read -r logFile; do
+        local baseName=$(basename "$logFile")
+        local timestamp=$(echo "$baseName" | grep -oP '\d{8}_\d{6}')
+        echo "$baseName (Timestamp: $timestamp)"
+        logFound=true
+    done < <(find /tmp -maxdepth 1 -name '*.log' 2>/dev/null | sort)
+    
+    if [ "$logFound" = false ]; then
+        echo "No log files found."
+    fi
+}
+
+
+# Updated viewProcessLogs function
+viewProcessLogs() {
+    local logFiles=($(find /tmp -maxdepth 1 -name '*.log' 2>/dev/null | sort))
+
+    if [ ${#logFiles[@]} -eq 0 ]; then
+        echo "No log files found."
+        return
+    fi
+
+    echo "Select a log file to view:"
+    select logFile in "${logFiles[@]}" "Exit"; do
+        if [ "$logFile" = "Exit" ]; then
+            return
+        elif [ -n "$logFile" ]; then
+            displayLogFile "$logFile"
+            break
+        else
+            echo "Invalid selection. Please try again."
+        fi
+    done
+}
+
+
 
 # Function to stop a process
 # @param {string} kind - Kind of process (e.g., "verser")
@@ -125,35 +264,6 @@ stopAllTmuxSessions() {
     done
 }
 
-# Function to start a process in a tmux session
-# @param {string} sessionName - Name for the tmux session
-# @param {string} command - The command to run in the tmux session
-startTmuxSession() {
-    local sessionName=$1
-    local command=$2
-
-    echo "Starting process in tmux session '$sessionName'..."
-    tmux new-session -d -s "$sessionName" "$command"
-    local pid=$(tmux list-panes -t "$sessionName" -F '#{pane_pid}')
-    echo "Process started in tmux session '$sessionName' with PID: $pid"
-    echo "To attach to this session, run: tmux attach-session -t $sessionName"
-    return $pid
-}
-
-# Function to stop a tmux session
-# @param {string} sessionName - Name of the session to stop
-stopTmuxSession() {
-    local sessionName=$1
-
-    if tmux has-session -t "$sessionName" 2>/dev/null; then
-        echo "Stopping tmux session '$sessionName'..."
-        tmux kill-session -t "$sessionName"
-        echo "Session '$sessionName' stopped."
-    else
-        echo "No tmux session found with name '$sessionName'."
-    fi
-}
-
 # Function to attach to a tmux session
 # @param {string} sessionName - Name of the session to attach to
 attachTmuxSession() {
@@ -166,6 +276,34 @@ attachTmuxSession() {
     else
         echo "No tmux session found with name '$sessionName'. Please start it first."
     fi
+}
+
+displayLogFile() {
+    local logFile=$1
+    if [ ! -f "$logFile" ]; then
+        echo "Log file not found: $logFile"
+        return 1
+    fi
+
+    echo "Select viewing mode:"
+    select mode in "View entire file" "Watch new entries" "Exit"; do
+        case $mode in
+            "View entire file")
+                less "$logFile"
+                break
+                ;;
+            "Watch new entries")
+                tail -f "$logFile"
+                break
+                ;;
+            "Exit")
+                return 0
+                ;;
+            *) 
+                echo "Invalid option. Please try again."
+                ;;
+        esac
+    done
 }
 
 # Function to display common tmux information
@@ -189,116 +327,6 @@ displayTmuxHelp() {
     displayCommonTmuxInfo
 }
 
-tmuxUtils() {
-    local content="
-TMUX UTILITIES
-
-NAME
-    tmuxUtils - A collection of utility functions for managing tmux sessions
-
-DESCRIPTION
-    This set of functions provides a convenient interface for starting, stopping,
-    and managing tmux sessions, particularly useful for running background processes.
-
-FUNCTIONS
-
-    startProcess KIND NAME COMMAND
-        Start a process in a new tmux session.
-        Arguments:
-            KIND - Type of process (e.g., 'verser')
-            NAME - Name of the process
-            COMMAND - The command to run in the session
-
-    stopProcess KIND NAME
-        Stop a specific tmux session.
-        Arguments:
-            KIND - Type of process
-            NAME - Name of the process
-
-    stopKindTmuxSessions KIND
-        Stop all tmux sessions of a specific kind.
-        Arguments:
-            KIND - Type of process to stop
-
-    listKindTmuxSessions KIND
-        List all tmux sessions of a specific kind.
-        Arguments:
-            KIND - Type of process to list
-
-    listTmuxSessions
-        List all active tmux sessions.
-
-    stopAllTmuxSessions
-        Stop all active tmux sessions.
-
-    startTmuxSession SESSION_NAME COMMAND
-        Start a new tmux session with a given name and command.
-        Arguments:
-            SESSION_NAME - Name for the new session
-            COMMAND - The command to run in the session
-
-    stopTmuxSession SESSION_NAME
-        Stop a specific tmux session by name.
-        Arguments:
-            SESSION_NAME - Name of the session to stop
-
-    attachTmuxSession SESSION_NAME
-        Attach to an existing tmux session.
-        Arguments:
-            SESSION_NAME - Name of the session to attach to
-
-    displayTmuxHelp
-        Display helpful information about tmux commands.
-
-    setup_tmux_config
-        Set up a basic tmux configuration file (~/.tmux.conf) with mouse support.
-
-USAGE EXAMPLES
-
-    Start a new process:
-        startProcess verser my_process 'python my_script.py'
-
-    Stop a specific process:
-        stopProcess verser my_process
-
-    List all 'verser' sessions:
-        listKindTmuxSessions verser
-
-    Stop all 'verser' sessions:
-        stopKindTmuxSessions verser
-
-    List all tmux sessions:
-        listTmuxSessions
-
-    Stop all tmux sessions:
-        stopAllTmuxSessions
-
-    Start a custom tmux session:
-        startTmuxSession my_session 'top'
-
-    Stop a custom tmux session:
-        stopTmuxSession my_session
-
-    Attach to a tmux session:
-        attachTmuxSession my_session
-
-    Display tmux help:
-        displayTmuxHelp
-
-    Set up tmux configuration:
-        setup_tmux_config
-
-NOTES
-    - Make sure tmux is installed on your system before using these functions.
-    - Use 'Ctrl-b, d' to detach from a tmux session without stopping it.
-    - The setup_tmux_config function creates a basic ~/.tmux.conf file with mouse support.
-
-SEE ALSO
-    tmux(1), bash(1)
-"
-
-    echo "$content" | less
-}
 
 setupTmuxConfig() {
     local tmux_conf="$HOME/.tmux.conf"

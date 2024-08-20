@@ -14,7 +14,7 @@ startVerserFrontend() {
       startProcess "frontend" "frontendVite" "npm run dev" "$frontendDirReact"
     fi
 
-    startProcess "frontend" "frontendVite" "npm run dev" "$frontendDirReact"
+    # startProcess "frontend" "frontendVite" "npm run dev" "$frontendDirReact"
     btcwd
 }
 
