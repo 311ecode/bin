@@ -36,19 +36,23 @@ tcloVerser() {
   btcwd
 }
 
-tcloVerserAll() {
+tcloVFrontend() {
+  tcloVerser "${frontend_paths[@]}"
+}
+
+tcloVBackendAll() {
+  tcloVerser "${verser_paths[@]}" "${verser_test_paths[@]}" 
+}
+
+tcloVAll() {
   tcloVerser "${verser_paths[@]}" "${verser_test_paths[@]}" "${frontend_paths[@]}" "${bash_paths[@]}" 
 }
 
-tcloVerserAllNoTests() {
+tcloVAllNoTests() {
   tcloVerser "${verser_paths[@]}" "${frontend_paths[@]}" "${bash_paths[@]}"
 }
 
-tcloVerserTest() {
-  tcloVerser "${verser_test_paths[@]}"
-}
-
 # Function to run tclo with only bash paths
-tcloVerserBash() {
+tcloVBash() {
   tcloVerser "${bash_paths[@]}"
 }
