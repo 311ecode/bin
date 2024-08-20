@@ -2,11 +2,11 @@ import { join } from "path/posix";
 import { generateTranslationOutputFilename } from './generateTranslationOutputFilename.mjs';
 import { processConcatenationTasks } from "./processConcatenationTasks.mjs";
 import { logger } from "../lib/logger.mjs";
-import { getConfigDetails } from "../configutationProcessor.mjs";
 import { logTranslationProgress } from "./processTranslationExecutions/logTranslationProgress.mjs";
 import { determineExecutionsToProcess } from "./processTranslationExecutions/determineExecutionsToProcess.mjs";
 import { calculateExecutionProgress } from "./processTranslationExecutions/calculateExecutionProgress.mjs";
 import { kindTranslateAlong } from "./processTranslationExecutions/kinds/kindTranslateAlong.mjs";
+import { getConfigDetails } from "./getConfigDetails.mjs";
 
 export const log  = logger()();
 

@@ -1,15 +1,15 @@
 import { join } from "path/posix";
-import { getConfigDetails } from "../../configutationProcessor.mjs";
 import { getMaxLineNumber } from "../../translation/processTranslation.mjs";
 import { generateTranslationOutputFilename } from "../generateTranslationOutputFilename.mjs";
 import { log } from "../processTranslationExecutions.mjs";
+import { getConfigDetails } from "../getConfigDetails.mjs";
 
 // /**
 //  * @typedef {import('../configutationProcessor.mjs').Execution} Execution
 //  */
 /**
  * @typedef {Object} ExecutionProgressConfig
- * @property {import('../../configutationProcessor.mjs').Execution} execution - The execution details.
+ * @property {import("../getConfigDetails.mjs").Execution} execution - The execution details.
  * @property {number} currentMaxLine - The current maximum line number processed.
  * @property {number} adjustedProgress - The progress adjusted by sameLineFactor.
  * @property {boolean} completed - Whether the execution is completed.

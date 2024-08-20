@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { join } from "path/posix";
-import { getConfigDetails, log } from "../configutationProcessor.mjs";
+import { log } from "../configutationProcessor.mjs";
+import { getConfigDetails } from './getConfigDetails.mjs';
 import { generateTranslationOutputFilename } from './generateTranslationOutputFilename.mjs';
 import { concatenateVerses } from "../lib/verseManipulation/concatenateVerses.mjs";
 import { writeOutput } from "../writeOutput.mjs";
