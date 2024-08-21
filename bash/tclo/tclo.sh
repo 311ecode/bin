@@ -9,36 +9,53 @@ tcloVerser() {
   btcwd
 }
 
+tcloArrays() {
+    local all_contents=()
+
+    # Loop through all provided array names
+    for array_name in "$@"; do
+        # Use indirect reference to get the array
+        local array_ref="${array_name}[@]"
+        local array_contents=("${!array_ref}")
+
+        # Append the contents of this array to all_contents
+        all_contents+=("${array_contents[@]}")
+    done
+
+    # Call tcloVerser with all accumulated contents
+    tcloVerser "${all_contents[@]}"
+}
+
 tcloVFrontend() {
-  tcloVerser "${tclo_frontend_paths[@]}"
+  tcloArrays tclo_frontend_paths
 }
 
 tcloVBackendAll() {
-  tcloVerser "${tclo_verser_paths[@]}" "${tclo_verser_test_paths[@]}" 
+  tcloArrays tclo_verser_paths tclo_verser_test_paths 
 }
 
 tcloVAll() {
-  tcloVerser "${tclo_verser_paths[@]}" "${tclo_verser_test_paths[@]}" "${tclo_frontend_paths[@]}" "${tclo_bash_paths[@]}" 
+  tcloArrays tclo_verser_paths tclo_verser_test_paths tclo_frontend_paths tclo_bash_paths 
 }
 
 tcloVAllNoTests() {
-  tcloVerser "${tclo_verser_paths[@]}" "${tclo_frontend_paths[@]}" "${tclo_bash_paths[@]}"
+  tcloArrays tclo_verser_paths tclo_frontend_paths tclo_bash_paths
 }
 
 # Function to run tclo with only bash paths
 tcloVBash() {
-  tcloVerser "${tclo_bash_paths[@]}"
+  tcloArrays tclo_bash_paths
 }
 
 tclo_api_paths=(
   "configutationProcessor.mjs"
   "configurationProcessor"
   "lib/verseManipulation/enrichVerseJson.mjs"
-  "lib/verseManipulation/addDataToExtradata.mjs"
+  "lib/verseManipulation/.mjs"
   "test/enrichVerseJson.test.js"
   "test/addDataToExtradata.test.js"
 )
 
 tcloVApi() {
-  tcloVerser "${tclo_api_paths[@]}"
+  tcloArrays tclo_api_paths
 }

@@ -38,7 +38,6 @@ bintclo() {
   btcwd
 }
 
-
 jestV() {
   scwd
   local test_name=${1:-}
@@ -49,7 +48,6 @@ jestV() {
   fi
   btcwd
 }
-
 
 # Function to display help message
 # @description Displays usage information for Verser functions
