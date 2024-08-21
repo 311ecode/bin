@@ -2,12 +2,13 @@ import { resolve } from 'path';
 import { logger } from '../../lib/logger.mjs';
 import express from 'express';
 import { createVerseJson } from '../../lib/verseManipulation/concatenateVerses.mjs';
-import fs from 'fs';
+import { enrichVerseJson } from '../../lib/verseManipulation/enrichVerseJson.mjs';
+import fs from 'fs/promises';
 import { getConfigDetails } from '../getConfigDetails.mjs';
 
 export const log = logger()();
 
-export const translationsByExecutionGroupsRoute = (executionGroups, configPath)=>{
+export const translationsByExecutionGroupsRoute = (executionGroups, configPath) => {
   const router = express.Router(); 
 
   router.get('/translations/:executionGroup', async (req, res) => {
@@ -28,7 +29,7 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath)=
 
       for (const concatenateConfig of concatenate) {
         const { file, original: includeOriginal, language, models } = concatenateConfig;
-        const filePaths = models.map(modelName => {
+        const filePaths = await Promise.all(models.map(async (modelName) => {
           const execution = modelExecutions.find(exec => exec.name === modelName);
           if (!execution) return null;
           
@@ -36,28 +37,62 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath)=
           const fileName = `${modelName}${langConfig ? `.${langConfig.filePostfix}` : ''}.md`;
           const filePath = resolve(baseOutputPath, fileName);
           
-          if (fs.existsSync(filePath)) {
+          try {
+            await fs.access(filePath);
             return filePath;
-          } else {
-            console.log(`File not found: ${filePath}`);
-            return null;
+          } catch (error) {
+            if (error.code === 'ENOENT') {
+              console.log(`File not found: ${filePath}`);
+              return null;
+            }
+            throw error;
           }
-        }).filter(Boolean);
+        }));
+
+        const validFilePaths = filePaths.filter(Boolean);
 
         if (includeOriginal) {
           const originalPath = resolve(baseOutputPath, original);
-          if (fs.existsSync(originalPath)) {
-            filePaths.unshift(originalPath);
-          } else {
-            console.log(`Original file not found: ${originalPath}`);
+          try {
+            await fs.access(originalPath);
+            validFilePaths.unshift(originalPath);
+          } catch (error) {
+            if (error.code === 'ENOENT') {
+              console.log(`Original file not found: ${originalPath}`);
+            } else {
+              throw error;
+            }
           }
         }
 
-        const jsonData = await createVerseJson(filePaths);
+        const baseJson = await createVerseJson(validFilePaths);
+        
+        // Construct the extra data path
+        const extraDataFileName = `${executionGroup}_extraData.md`;
+        const extraDataPath = resolve(baseOutputPath, extraDataFileName);
+        
+        let enrichedJsonData;
+        try {
+          // Check if the extra data file exists
+          await fs.access(extraDataPath);
+        } catch (error) {
+          if (error.code === 'ENOENT') {
+            // File doesn't exist, create an empty file
+            await fs.writeFile(extraDataPath, '');
+            log(`Created empty extra data file: ${extraDataPath}`);
+          } else {
+            throw error;
+          }
+        }
+
+        // Enrich the JSON with extra data (even if the file was just created and is empty)
+        enrichedJsonData = await enrichVerseJson(baseJson, extraDataPath);
+        log(`Enriched JSON data with extra data from: ${extraDataPath}`);
+
         results.push({
           file,
           language,
-          translations: jsonData
+          translations: enrichedJsonData
         });
       }
 
@@ -70,7 +105,3 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath)=
 
   return router;
 }
-
-
-
-
