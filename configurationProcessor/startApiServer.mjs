@@ -1,11 +1,10 @@
-import { resolve } from 'path';
 import { logger } from '../lib/logger.mjs';
 import express from 'express';
-import { createVerseJson } from '../lib/verseManipulation/concatenateVerses.mjs';
 import { env } from 'process';
-import fs from 'fs';
 import cors from 'cors';
-import { getConfigDetails } from './getConfigDetails.mjs';
+// routes
+import { addExtraDataRoute } from './apiRoutes/addExtraDataRoute.mjs';
+import { translationsByExecutionGroupsRoute } from './apiRoutes/translationsByExecutionGroupsRoute.mjs';
 
 export const log = logger()();
 
@@ -20,66 +19,12 @@ export async function startApiServer(config, executionGroups, configPath) {
     allowedHeaders: ['Content-Type', 'Authorization']
   }));
 
-  app.get('/translations/:executionGroup', async (req, res) => {
-    const { executionGroup } = req.params;
-    if (!executionGroups.includes(executionGroup)) {
-      return res.status(404).json({ error: 'Execution group not found' });
-    }
-
-    try {
-      const configDetails = await getConfigDetails(configPath, executionGroup);
-      const { baseOutputPath, original, concatenate, modelExecutions, jobs } = configDetails;
-
-      if (!concatenate) {
-        return res.status(404).json({ error: 'Concatenation configuration not found for this execution group' });
-      }
-
-      const results = [];
-
-      for (const concatenateConfig of concatenate) {
-        const { file, original: includeOriginal, language, models } = concatenateConfig;
-        const filePaths = models.map(modelName => {
-          const execution = modelExecutions.find(exec => exec.name === modelName);
-          if (!execution) return null;
-          
-          const langConfig = jobs.languages.find(lang => lang.language === execution.language);
-          const fileName = `${modelName}${langConfig ? `.${langConfig.filePostfix}` : ''}.md`;
-          const filePath = resolve(baseOutputPath, fileName);
-          
-          if (fs.existsSync(filePath)) {
-            return filePath;
-          } else {
-            console.log(`File not found: ${filePath}`);
-            return null;
-          }
-        }).filter(Boolean);
-
-        if (includeOriginal) {
-          const originalPath = resolve(baseOutputPath, original);
-          if (fs.existsSync(originalPath)) {
-            filePaths.unshift(originalPath);
-          } else {
-            console.log(`Original file not found: ${originalPath}`);
-          }
-        }
-
-        const jsonData = await createVerseJson(filePaths);
-        results.push({
-          file,
-          language,
-          translations: jsonData
-        });
-      }
-
-      res.json(results);
-    } catch (error) {
-      console.error('Error processing request:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
+  app.use(express.json());
+  app.use(translationsByExecutionGroupsRoute(executionGroups, configPath));
+  app.use(addExtraDataRoute);
 
   app.get('/', (req, res) => {
-    const availableEndpoints = executionGroups.map(group => `/translations/${group}`);
+    const availableEndpoints = getAppRoutes(app);
     res.json({
       message: "Welcome to the Translations API",
       availableEndpoints
@@ -90,9 +35,33 @@ export async function startApiServer(config, executionGroups, configPath) {
     console.log(`API server listening at http://localhost:${port}`);
     console.log("Available endpoints:");
     console.log(`  GET /`);
-    executionGroups.forEach(group => {
-      console.log(`  GET /translations/${group}`);
-    });
+
+    console.log(getAppRoutes(app).map(route => `  ${route.method} ${route.path}`).join('\n'));
+    
   });
 }
 
+
+function getAppRoutes(app) {
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // Routes registered directly on the app
+      routes.push({
+        method: Object.keys(middleware.route.methods)[0].toUpperCase(),
+        path: middleware.route.path
+      });
+    } else if (middleware.name === 'router') {
+      // Router middleware
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push({
+            method: Object.keys(handler.route.methods)[0].toUpperCase(),
+            path: handler.route.path
+          });
+        }
+      });
+    }
+  });
+  return routes;
+}

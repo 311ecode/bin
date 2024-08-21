@@ -20,6 +20,22 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug configutationProcessor.mjs --api",
+      "program": "${workspaceFolder}/configutationProcessor.mjs",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "args": [
+        "-c",
+        "/home/imre/Documents/obsidian-docs/Language/Dutch/translations/Márai/Napló/1945-1957/verses/configNewStructure.yml",
+        "--api"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Run all tests",
       "runtimeArgs": [
         "--experimental-vm-modules"
