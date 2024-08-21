@@ -98,11 +98,56 @@ describe('enrichVerseJson', () => {
 
     const result = await enrichVerseJson(baseJson, shortExtraDataPath);
 
-    expect(result[0].extraData).toBeDefined();
-    expect(result[1].extraData).toBeDefined();
-    expect(result[2].extraData).toBeUndefined();
-    expect(result[3].extraData).toBeUndefined();
+    expect(result[0].extraData).toEqual({ short_extra_data: { note: "Extra data for verse 1" } });
+    expect(result[1].extraData).toEqual({ short_extra_data: { note: "Extra data for verse 2" } });
+    expect(result[2].extraData).toEqual({ short_extra_data: {} });
+    expect(result[3].extraData).toEqual({ short_extra_data: {} });
+
+    // Verify that all verses have an extraData property
+    result.forEach(verse => {
+      expect(verse.extraData).toBeDefined();
+      expect(verse.extraData).toHaveProperty('short_extra_data');
+    });
+
+    // Verify the structure of the result
+    expect(result).toEqual([
+      {
+        verse: 1,
+        original: "Verse 1 from file 1",
+        translations: {
+          test_file1: "Verse 1 from file 1",
+          test_file2: "Verse 1 from file 2"
+        },
+        extraData: { short_extra_data: { note: "Extra data for verse 1" } }
+      },
+      {
+        verse: 2,
+        original: "Verse 2 from file 1",
+        translations: {
+          test_file1: "Verse 2 from file 1",
+          test_file2: "Verse 2 from file 2"
+        },
+        extraData: { short_extra_data: { note: "Extra data for verse 2" } }
+      },
+      {
+        verse: 3,
+        original: "Verse 3 from file 1",
+        translations: {
+          test_file1: "Verse 3 from file 1"
+        },
+        extraData: { short_extra_data: {} }
+      },
+      {
+        verse: 4,
+        original: "Verse 4 from file 2",
+        translations: {
+          test_file2: "Verse 4 from file 2"
+        },
+        extraData: { short_extra_data: {} }
+      }
+    ]);
   });
+
 
   test('should handle invalid JSON in extra data file', async () => {
     const invalidExtraDataPath = path.join(tempDir, 'invalid_extra_data.json');
@@ -112,10 +157,56 @@ describe('enrichVerseJson', () => {
 
     const result = await enrichVerseJson(baseJson, invalidExtraDataPath);
 
-    expect(result[0].extraData).toBeDefined();
-    expect(result[1].extraData).toBeUndefined();
-    expect(result[2].extraData).toBeDefined();
+    expect(result[0].extraData).toEqual({ invalid_extra_data: { note: "Valid JSON" } });
+    expect(result[1].extraData).toEqual({ invalid_extra_data: {} });
+    expect(result[2].extraData).toEqual({ invalid_extra_data: { note: "Valid JSON again" } });
+    expect(result[3].extraData).toEqual({ invalid_extra_data: {} });
+
+    // Check that all verses have an extraData property
+    result.forEach(verse => {
+      expect(verse.extraData).toBeDefined();
+      expect(verse.extraData).toHaveProperty('invalid_extra_data');
+    });
+
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error parsing extra data for verse 2'));
+
+    // Verify the complete structure
+    expect(result).toEqual([
+      {
+        verse: 1,
+        original: "Verse 1 from file 1",
+        translations: {
+          test_file1: "Verse 1 from file 1",
+          test_file2: "Verse 1 from file 2"
+        },
+        extraData: { invalid_extra_data: { note: "Valid JSON" } }
+      },
+      {
+        verse: 2,
+        original: "Verse 2 from file 1",
+        translations: {
+          test_file1: "Verse 2 from file 1",
+          test_file2: "Verse 2 from file 2"
+        },
+        extraData: { invalid_extra_data: {} }
+      },
+      {
+        verse: 3,
+        original: "Verse 3 from file 1",
+        translations: {
+          test_file1: "Verse 3 from file 1"
+        },
+        extraData: { invalid_extra_data: { note: "Valid JSON again" } }
+      },
+      {
+        verse: 4,
+        original: "Verse 4 from file 2",
+        translations: {
+          test_file2: "Verse 4 from file 2"
+        },
+        extraData: { invalid_extra_data: {} }
+      }
+    ]);
 
     consoleSpy.mockRestore();
   });
@@ -127,7 +218,18 @@ describe('enrichVerseJson', () => {
 
     const result = await enrichVerseJson(baseJson, nonExistentPath);
 
-    expect(result).toEqual(baseJson);
+    // Check that all verses have an extraData property with an empty object
+    result.forEach(verse => {
+      expect(verse.extraData).toBeDefined();
+      expect(verse.extraData).toEqual({});
+    });
+
+    // Verify the complete structure
+    expect(result).toEqual(baseJson.map(verse => ({
+      ...verse,
+      extraData: {}
+    })));
+
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error reading or processing extra data file'));
 
     consoleSpy.mockRestore();
@@ -140,9 +242,112 @@ describe('enrichVerseJson', () => {
 
     const result = await enrichVerseJson(baseJson, nonSequentialExtraDataPath);
 
-    expect(result[0].extraData).toBeDefined();
-    expect(result[1].extraData).toBeUndefined();
-    expect(result[2].extraData).toBeDefined();
-    expect(result[3].extraData).toBeUndefined();
+    // Check that all verses have an extraData property
+    result.forEach(verse => {
+      expect(verse.extraData).toBeDefined();
+      expect(verse.extraData).toHaveProperty('non_sequential_extra_data');
+    });
+
+    // Check specific verses
+    expect(result[0].extraData).toEqual({ non_sequential_extra_data: { note: "Extra data for verse 1" } });
+    expect(result[1].extraData).toEqual({ non_sequential_extra_data: {} });
+    expect(result[2].extraData).toEqual({ non_sequential_extra_data: { note: "Extra data for verse 3" } });
+    expect(result[3].extraData).toEqual({ non_sequential_extra_data: {} });
+
+    // Verify the complete structure
+    expect(result).toEqual([
+      {
+        verse: 1,
+        original: "Verse 1 from file 1",
+        translations: {
+          test_file1: "Verse 1 from file 1",
+          test_file2: "Verse 1 from file 2"
+        },
+        extraData: { non_sequential_extra_data: { note: "Extra data for verse 1" } }
+      },
+      {
+        verse: 2,
+        original: "Verse 2 from file 1",
+        translations: {
+          test_file1: "Verse 2 from file 1",
+          test_file2: "Verse 2 from file 2"
+        },
+        extraData: { non_sequential_extra_data: {} }
+      },
+      {
+        verse: 3,
+        original: "Verse 3 from file 1",
+        translations: {
+          test_file1: "Verse 3 from file 1"
+        },
+        extraData: { non_sequential_extra_data: { note: "Extra data for verse 3" } }
+      },
+      {
+        verse: 4,
+        original: "Verse 4 from file 2",
+        translations: {
+          test_file2: "Verse 4 from file 2"
+        },
+        extraData: { non_sequential_extra_data: {} }
+      }
+    ]);
+
+    // Ensure that verse 5 (which is in the extra data but not in baseJson) is not included
+    expect(result.length).toBe(4);
+    expect(result.find(v => v.verse === 5)).toBeUndefined();
   });
+
+  test('should enrich verses without existing extra data with empty objects', async () => {
+    const partialExtraDataPath = path.join(tempDir, 'partial_extra_data.json');
+    await fs.writeFile(partialExtraDataPath, 
+      '|1.| {"note": "Extra data for verse 1"}\n|3.| {"note": "Extra data for verse 3"}');
+
+    const result = await enrichVerseJson(baseJson, partialExtraDataPath);
+
+    expect(result).toEqual([
+      {
+        verse: 1,
+        original: "Verse 1 from file 1",
+        translations: {
+          test_file1: "Verse 1 from file 1",
+          test_file2: "Verse 1 from file 2"
+        },
+        extraData: {
+          partial_extra_data: { note: "Extra data for verse 1" }
+        }
+      },
+      {
+        verse: 2,
+        original: "Verse 2 from file 1",
+        translations: {
+          test_file1: "Verse 2 from file 1",
+          test_file2: "Verse 2 from file 2"
+        },
+        extraData: {
+          partial_extra_data: {}  // Empty object for verse without extra data
+        }
+      },
+      {
+        verse: 3,
+        original: "Verse 3 from file 1",
+        translations: {
+          test_file1: "Verse 3 from file 1"
+        },
+        extraData: {
+          partial_extra_data: { note: "Extra data for verse 3" }
+        }
+      },
+      {
+        verse: 4,
+        original: "Verse 4 from file 2",
+        translations: {
+          test_file2: "Verse 4 from file 2"
+        },
+        extraData: {
+          partial_extra_data: {}  // Empty object for verse without extra data
+        }
+      }
+    ]);
+  });
+  
 });
