@@ -18,6 +18,7 @@ frontendDirReact="$verserDir/frontend/vite-react"
 # Stores the current working directory in a global variable `scwdv`.
 scwd() {
   scwdv="$(pwd)"
+  cd "$verserDir" || return 1
 }
 
 # btcwd
@@ -38,7 +39,17 @@ bintclo() {
 }
 
 
-#!/bin/bash
+jestV() {
+  scwd
+  local test_name=${1:-}
+  if [ -n "$test_name" ]; then
+    exec node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs -t "$test_name"
+  else
+    exec node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs
+  fi
+  btcwd
+}
+
 
 # Function to display help message
 # @description Displays usage information for Verser functions
