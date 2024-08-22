@@ -20,16 +20,16 @@ export async function startApiServer(config, executionGroups, configPath) {
   }));
 
   app.use(express.json());
+  app.use(addExtraDataRoute(executionGroups, configPath));
   app.use(translationsByExecutionGroupsRoute(executionGroups, configPath));
-  app.use(addExtraDataRoute);
 
-  app.get('/', (req, res) => {
-    const availableEndpoints = getAppRoutes(app);
+  app.use(express.Router().get('/'), (req, res) => {
     res.json({
       message: "Welcome to the Translations API",
-      availableEndpoints
+      availableEndpoints: getAppRoutes(app)
     });
-  });
+  })
+
 
   app.listen(port, () => {
     console.log(`API server listening at http://localhost:${port}`);
@@ -44,24 +44,39 @@ export async function startApiServer(config, executionGroups, configPath) {
 
 function getAppRoutes(app) {
   const routes = [];
+  
+  if (!app || !app._router || !app._router.stack) {
+    console.warn('App or router not properly initialized');
+    return routes;
+  }
+
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
       // Routes registered directly on the app
-      routes.push({
-        method: Object.keys(middleware.route.methods)[0].toUpperCase(),
-        path: middleware.route.path
-      });
+      const methods = Object.keys(middleware.route.methods || {});
+      if (methods.length > 0) {
+        routes.push({
+          method: methods[0].toUpperCase(),
+          path: middleware.route.path
+        });
+      }
     } else if (middleware.name === 'router') {
       // Router middleware
-      middleware.handle.stack.forEach((handler) => {
-        if (handler.route) {
-          routes.push({
-            method: Object.keys(handler.route.methods)[0].toUpperCase(),
-            path: handler.route.path
-          });
-        }
-      });
+      if (middleware.handle && middleware.handle.stack) {
+        middleware.handle.stack.forEach((handler) => {
+          if (handler.route) {
+            const methods = Object.keys(handler.route.methods || {});
+            if (methods.length > 0) {
+              routes.push({
+                method: methods[0].toUpperCase(),
+                path: handler.route.path
+              });
+            }
+          }
+        });
+      }
     }
   });
+
   return routes;
 }
