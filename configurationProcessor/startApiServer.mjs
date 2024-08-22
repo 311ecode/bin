@@ -20,8 +20,8 @@ export async function startApiServer(config, executionGroups, configPath) {
   }));
 
   app.use(express.json());
-  app.use(addExtraDataRoute(executionGroups, configPath));
-  app.use(translationsByExecutionGroupsRoute(executionGroups, configPath));
+  app.use('/api', addExtraDataRoute(executionGroups, configPath));
+  app.use('/api', translationsByExecutionGroupsRoute(executionGroups, configPath));
 
   app.use(express.Router().get('/'), (req, res) => {
     res.json({

@@ -83,11 +83,6 @@ restartVerserProcess() {
     restartProcessByProxy prepareVerserProcessInfo "$@"
 }
 
-# *********************************************** #
-
-
-
-
 
 
 
