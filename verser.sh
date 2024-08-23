@@ -39,13 +39,14 @@ bintclo() {
 }
 
 # Function: jestV
-# Description: Run Jest tests with configurable options including repeat count and delay between runs.
+# Description: Run Jest tests with configurable options including repeat count, delay between runs, and exec mode.
 #
 # Usage: jestV [options] [test_name]
 #
 # Options:
 #   <number>        Number of times to repeat the test(s)
 #   delay:<seconds> Delay in seconds between test runs (can be fractional)
+#   exec:true       Use exec command to run tests (resets repeat count to 1)
 #   <test_name>     Name of a specific test to run (optional)
 #
 # Examples:
@@ -54,16 +55,19 @@ bintclo() {
 #   jestV 5 "my test"           # Run "my test" 5 times
 #   jestV delay:2 "my test"     # Run "my test" once with 2 second delay
 #   jestV 3 delay:0.5 "my test" # Run "my test" 3 times with 0.5 second delay
+#   jestV exec:true "my test"   # Run "my test" once using exec command
 #
 # Notes:
 #   - Options can be provided in any order
 #   - If no repeat count is specified, tests run once
 #   - If no delay is specified, there is no delay between runs
 #   - If no test name is provided, all tests are run
+#   - exec:true overrides repeat count and sets it to 1
 jestV() {
     local repeat_count=1
     local test_name=""
     local delay=0
+    local use_exec=false
     local total_duration=0
     local total_duration_with_delays=0
     local successful_runs=0
@@ -76,26 +80,35 @@ jestV() {
             repeat_count=$arg
         elif [[ "$arg" =~ ^delay:[0-9]+(\.[0-9]+)?$ ]]; then
             delay=${arg#delay:}
+        elif [[ "$arg" == "exec:true" ]]; then
+            use_exec=true
+            repeat_count=1
         else
             test_name="$arg"
         fi
     done
 
-    echo "FUUU"
     local overall_start_time=$(date +%s%N)
     for ((i=1; i<=repeat_count; i++)); do
         local start_time=$(date +%s%N)
+        local command
+
         if [ -n "$test_name" ]; then
-            if ! node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs -t "$test_name"; then
-                echo "Test '$test_name' failed on run $i"
-                break
-            fi
+            command="node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs -t \"$test_name\""
         else
-            if ! node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs; then
-                echo "Tests failed on run $i"
+            command="node --experimental-vm-modules node_modules/jest/bin/jest.js -c ./jest.config.mjs"
+        fi
+
+        if $use_exec; then
+            exec $command
+            # Note: The script will end here if exec is used
+        else
+            if ! eval $command; then
+                echo "Test failed on run $i"
                 break
             fi
         fi
+
         local end_time=$(date +%s%N)
         local duration=$(( (end_time - start_time) / 1000000 ))
         ((successful_runs++))
@@ -116,6 +129,7 @@ jestV() {
             sleep "$delay"
         fi
     done
+
     local overall_end_time=$(date +%s%N)
     total_duration_with_delays=$(( (overall_end_time - overall_start_time) / 1000000 ))
 
@@ -141,6 +155,7 @@ jestV() {
         echo "No successful runs"
     fi
 }
+
 # Function to display help message
 # @description Displays usage information for Verser functions
 displayVerserHelp() {
