@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 
 const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
+  const commentRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState('');
   const [editingComment, setEditingComment] = useState('');
@@ -14,7 +15,7 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
     if (ref.current) {
       setRowHeight(index, ref.current.getBoundingClientRect().height);
     }
-  }, [setRowHeight, index, verse, visibleModels, isEditing]);
+  }, [setRowHeight, index, verse, visibleModels, isEditing, comment]);
 
   useEffect(() => {
     if (verse.extraData?.basictranslation_extraData) {
@@ -22,6 +23,12 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
       setHasProblem(verse.extraData.basictranslation_extraData.hasProblem || false);
     }
   }, [verse.extraData]);
+
+  useEffect(() => {
+    if (commentRef.current) {
+      setRowHeight(index, ref.current.getBoundingClientRect().height);
+    }
+  }, [comment, setRowHeight, index]);
 
   const handleCommentChange = (event) => {
     setEditingComment(event.target.value);
@@ -88,7 +95,7 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
           </IconButton>
         </Typography>
         
-        {isEditing && (
+        {isEditing ? (
           <TextField
             fullWidth
             multiline
@@ -100,13 +107,11 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
             placeholder="Add a comment (Markdown supported)..."
             sx={{ mb: 2 }}
           />
-        )}
-        
-        {!isEditing && comment && (
-          <Paper elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
+        ) : comment ? (
+          <Paper ref={commentRef} elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
             <ReactMarkdown>{comment}</ReactMarkdown>
           </Paper>
-        )}
+        ) : null}
         
         <Grid container spacing={2}>
           {models.map(model => (
