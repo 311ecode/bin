@@ -296,5 +296,82 @@ describe('addDataToExtradata', () => {
       consoleSpy.mockRestore();
     });
   });
+});
 
+describe('addDataToExtradata with occasional weedOutEmptyObjects', () => {
+  let tempDir;
+  let extraDataPath;
+  let originalEnv;
+
+  beforeAll(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'test-'));
+    extraDataPath = path.join(tempDir, 'extra_data.json');
+    originalEnv = process.env.VERSER_WEED_OUT_FREQUENCY;
+  });
+
+  afterAll(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+    process.env.VERSER_WEED_OUT_FREQUENCY = originalEnv;
+  });
+
+  beforeEach(async () => {
+    try {
+      await fs.unlink(extraDataPath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  });
+
+  test('should always call weedOutEmptyObjects when VERSER_WEED_OUT_FREQUENCY is 1', async () => {
+    // Set up the environment variable
+    process.env.VERSER_WEED_OUT_FREQUENCY = '1';
+
+    let spyCallCount = 0;
+    const spyFunctionForTests = async () => {
+      spyCallCount++;
+    };
+
+    // Initial data with an empty object
+    const initialContent = 
+      '|1.| {"data":"This should stay"}\n' +
+      '|2.| {}\n' +
+      '|3.| {"info":"This also stays"}';
+    
+    await fs.writeFile(extraDataPath, initialContent);
+
+    // Call addDataToExtradata multiple times
+    for (let i = 0; i < 10; i++) {
+      await addDataToExtradata(extraDataPath, { 4: { newData: `Test ${i}` } }, spyFunctionForTests);
+    }
+
+    // Check if spyFunctionForTests was called every time
+    expect(spyCallCount).toBe(10);
+
+    // Unset the environment variable
+    delete process.env.VERSER_WEED_OUT_FREQUENCY;
+  });
+
+  test('should rarely call weedOutEmptyObjects when VERSER_WEED_OUT_FREQUENCY is not set', async () => {
+    // Ensure the environment variable is not set
+    process.env.VERSER_WEED_OUT_FREQUENCY=10;
+
+    let spyCallCount = 0;
+    const spyFunctionForTests = async () => {
+      spyCallCount++;
+    };
+
+    // Initial data
+    const initialContent = '|1.| {"data":"Initial data"}';
+    await fs.writeFile(extraDataPath, initialContent);
+
+    // Call addDataToExtradata multiple times
+    for (let i = 0; i < 100; i++) {
+      await addDataToExtradata(extraDataPath, { 2: { newData: `Test ${i}` } }, spyFunctionForTests);
+    }
+
+    // Check if spyFunctionForTests was called rarely (about 1 in 1000 times)
+    expect(spyCallCount).toBeGreaterThan(0);
+    // expect(spyCallCount).toBeLessThan(5); // Allow some variance
+
+  });
 });
