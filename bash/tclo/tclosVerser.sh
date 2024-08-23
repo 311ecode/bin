@@ -110,7 +110,6 @@ tcloV_frontend_paths=(
   "frontend/vite-react/index.html"
 )
 
-
 tcloV_verser_paths=(
   "verser.mjs"
   "processFiles.mjs"
