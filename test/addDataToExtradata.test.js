@@ -295,6 +295,58 @@ describe('addDataToExtradata', () => {
       expect(consoleSpy).toHaveBeenCalledTimes(2); // For the two invalid JSON lines
       consoleSpy.mockRestore();
     });
+    test('should return the number of purged lines and processing time with optional representations', async () => {
+      const initialContent = 
+        '|1.| {"data":"This should stay"}\n' +
+        '|2.| {}\n' +
+        '|3.| {"info":"This also stays"}\n' +
+        '|4.| {invalid JSON}\n' +
+        '|5.| {"note":"Keep this too"}\n' +
+        '|6.| not even close to JSON\n' +
+        '|7.| []';
+      
+      await fs.writeFile(extraDataPath, initialContent);
+    
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    
+      const result = await weedOutEmptyObjects(extraDataPath);
+
+      console.log({result});
+      
+    
+      expect(result).toHaveProperty('purgedLines', 4);
+      expect(result).toHaveProperty('processingTime');
+      expect(result).toHaveProperty('timeUnit', 'nanoseconds');
+      expect(typeof result.processingTime).toBe('number');
+      expect(result.processingTime).toBeGreaterThan(0);
+    
+      // Check for optional time representations
+      if (result.processingTimeMs) {
+        // eslint-disable-next-line jest/no-conditional-expect
+        expect(Number.isInteger(result.processingTimeMs)).toBe(true);
+        // eslint-disable-next-line jest/no-conditional-expect
+        expect(result.processingTimeMs).toBe(Math.floor(result.processingTimeNs / 1e6));
+      }
+    
+      if (result.processingTimeS) {
+        // eslint-disable-next-line jest/no-conditional-expect
+        expect(Number.isInteger(result.processingTimeS)).toBe(true);
+        // eslint-disable-next-line jest/no-conditional-expect
+        expect(result.processingTimeS).toBe(Math.floor(result.processingTimeNs / 1e9));
+      }
+        
+      const content = await fs.readFile(extraDataPath, 'utf8');
+      const lines = content.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[0]).toBe('|1.| {"data":"This should stay"}');
+      expect(lines[1]).toBe('|3.| {"info":"This also stays"}');
+      expect(lines[2]).toBe('|5.| {"note":"Keep this too"}');
+    
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Removing line with invalid JSON'));
+      consoleSpy.mockRestore();
+    });
+    
+    
   });
 });
 
