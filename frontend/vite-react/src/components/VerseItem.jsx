@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Typography, Grid, IconButton, TextField } from '@mui/material';
 import { MessageSquare, Edit, AlertTriangle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
@@ -96,15 +97,15 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
             onChange={handleCommentChange}
             onKeyPress={handleKeyPress}
             onKeyDown={handleKeyDown}
-            placeholder="Add a comment..."
+            placeholder="Add a comment (Markdown supported)..."
             sx={{ mb: 2 }}
           />
         )}
         
         {!isEditing && comment && (
-          <Typography variant="body2" sx={{ mb: 2, fontStyle: 'italic' }}>
-            Comment: {comment}
-          </Typography>
+          <Paper elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
+            <ReactMarkdown>{comment}</ReactMarkdown>
+          </Paper>
         )}
         
         <Grid container spacing={2}>
