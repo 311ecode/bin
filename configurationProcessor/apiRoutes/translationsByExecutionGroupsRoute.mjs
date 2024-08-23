@@ -8,6 +8,78 @@ import { getConfigDetails } from '../getConfigDetails.mjs';
 
 export const log = logger()();
 
+/**
+ * Translations Route
+ * 
+ * This route provides access to translations based on execution groups.
+ * 
+ * @route GET /translations/:executionGroup
+ * 
+ * @param {string[]} executionGroups - Array of valid execution group names.
+ * @param {string} configPath - Path to the configuration file.
+ * 
+ * @urlParam {string} executionGroup - The name of the execution group to retrieve translations for.
+ * 
+ * @returns {Object[]} An array of translation objects, each containing:
+ *   - file: {string} The name of the file containing the translations.
+ *   - language: {string} The target language of the translations.
+ *   - translations: {Object[]} An array of verse translations, each containing:
+ *     - verse: {number} The verse number.
+ *     - original: {string} The original text.
+ *     - translations: {Object} An object with translations from different models:
+ *       - original: {string} The original text (repeated for convenience).
+ *       - [modelName]: {string} Translation by the specific model (e.g., "gemma2-27b.nl", "llama3.1-8b.nl", etc.).
+ *     - extraData: {Object} Additional data related to the translation:
+ *       - basictranslation_extraData: {Object} Extra metadata for the translation.
+ * 
+ * @throws {404} If the specified execution group doesn't exist.
+ * 
+ * @example
+ * // Request
+ * GET /translations/group1
+ * 
+ * // Response
+ * [
+ *   {
+ *     "file": "dutch-translations.md",
+ *     "language": "Dutch",
+ *     "translations": [
+ *       {
+ *         "verse": 1,
+ *         "original": "Márai Sándor",
+ *         "translations": {
+ *           "original": "Márai Sándor",
+ *           "gemma2-27b.nl": "Márai Sándor",
+ *           "llama3.1-8b.nl": "Márai Sándor",
+ *           "gemma2-9b.nl": "Márai Sándor",
+ *           "qwen2-7b.nl": "Márai Sándor",
+ *           "gemma2-2b.nl": "Márai Sándor",
+ *           "mistral-nemo-12b.nl": "Sándor Márai"
+ *         },
+ *         "extraData": {
+ *           "basictranslation_extraData": {
+ *             "customKey": "customValue",
+ *             "b": "colada",
+ *             "c": "mango",
+ *             "a": "pina"
+ *           }
+ *         }
+ *       },
+ *       // ... more verses ...
+ *     ]
+ *   },
+ *   // ... potentially more files ...
+ * ]
+ * 
+ * @description
+ * This route handler checks if the requested execution group exists in the
+ * predefined list of execution groups. If it does, it retrieves the translations
+ * for that group from the configuration specified by configPath. The route
+ * returns an array of objects, each representing a file with translations.
+ * Each translation includes the original text and translations from various
+ * models, along with any extra data associated with the translation. If the
+ * execution group doesn't exist, it returns a 404 error.
+ */
 export const translationsByExecutionGroupsRoute = (executionGroups, configPath) => {
   const router = express.Router(); 
 

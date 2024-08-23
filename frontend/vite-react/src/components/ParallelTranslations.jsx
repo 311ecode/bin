@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Typography, AppBar, Toolbar, Box, useMediaQuery, useTheme, CircularProgress } from '@mui/material';
+import { Typography, AppBar, Toolbar, Box, CircularProgress } from '@mui/material';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import InfiniteLoader from 'react-window-infinite-loader';
@@ -13,8 +13,6 @@ const ParallelTranslations = ({ executionGroup }) => {
   const [visibleModels, setVisibleModels] = useState({});
   const listRef = useRef();
   const rowHeights = useRef({});
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { 
     translations, 
@@ -22,7 +20,8 @@ const ParallelTranslations = ({ executionGroup }) => {
     totalItems, 
     isLoading, 
     loadMoreItems, 
-    isItemLoaded 
+    isItemLoaded,
+    updateExtraData 
   } = useTranslations(executionGroup);
 
   const { targetVerse, navigateToVerse, isNavigating } = useVerseNavigation(
@@ -60,6 +59,10 @@ const ParallelTranslations = ({ executionGroup }) => {
 
   const getItemSize = useCallback((index) => rowHeights.current[index] || 100, []);
 
+  const handleUpdateExtraData = useCallback((verseNumber, extraData) => {
+    updateExtraData(verseNumber, extraData);
+  }, [updateExtraData]);
+
   const renderVerse = useCallback(({ index, style }) => (
     <VerseItem
       verse={translations[index]}
@@ -68,8 +71,9 @@ const ParallelTranslations = ({ executionGroup }) => {
       visibleModels={visibleModels}
       setRowHeight={setRowHeight}
       isTargeted={index === targetVerse - 1}
+      onUpdateExtraData={handleUpdateExtraData}
     />
-  ), [translations, visibleModels, setRowHeight, targetVerse]);
+  ), [translations, visibleModels, setRowHeight, targetVerse, handleUpdateExtraData]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (isLoading && translations.length === 0) return <Typography>Loading...</Typography>;

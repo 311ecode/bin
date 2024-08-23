@@ -54,6 +54,15 @@ tcloVbashApi() {
   tcloArrays tcloV_bash_api_paths
 }
 
+tcloVFrontendBashapi() {
+  tcloArrays tcloV_frontend_paths tcloV_bash_api_paths tcloV_api_paths tcloV_api_related_test_paths
+}
+
+tcloV_api_related_test_paths=(
+  "test/enrichVerseJson.test.js"
+  "test/addDataToExtradata.test.js"
+)
+
 tcloV_bash_api_paths=(
   "bash/api"
 )

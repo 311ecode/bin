@@ -1,6 +1,6 @@
 vApiGetTranslations() {
     local execution_group="${1:-basictranslation}"
-    local vApi_url="http://localhost:33333/translations/$execution_group"
+    local vApi_url="http://localhost:33333/api/translations/$execution_group"
     local response=$(curl -s "$vApi_url")
     local curl_status=$?
 

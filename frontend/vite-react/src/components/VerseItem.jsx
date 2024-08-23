@@ -1,16 +1,36 @@
-import React, { useEffect, useRef } from 'react';
-import { Paper, Typography, Grid, Divider, useMediaQuery, useTheme } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Paper, Typography, Grid, IconButton, TextField } from '@mui/material';
+import { MessageSquare, Edit } from 'lucide-react';
 
-const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted }) => {
+const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [isEditing, setIsEditing] = useState(false);
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     if (ref.current) {
       setRowHeight(index, ref.current.getBoundingClientRect().height);
     }
-  }, [setRowHeight, index, verse, visibleModels, isMobile]);
+  }, [setRowHeight, index, verse, visibleModels, isEditing]);
+
+  useEffect(() => {
+    if (verse.extraData?.basictranslation_extraData?.comment) {
+      setComment(verse.extraData.basictranslation_extraData.comment);
+    }
+  }, [verse.extraData]);
+
+  const handleCommentChange = (event) => {
+    setComment(event.target.value);
+  };
+
+  const handleCommentSubmit = () => {
+    onUpdateExtraData(verse.verse, { comment });
+    setIsEditing(false);
+  };
+
+  const toggleEditing = () => {
+    setIsEditing(!isEditing);
+  };
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;
@@ -24,12 +44,37 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
         elevation={3} 
         sx={{ 
           p: 2, 
-          backgroundColor: isTargeted ? theme.palette.action.selected : (index % 2 ? '#f5f5f5' : 'inherit'),
+          backgroundColor: isTargeted ? 'action.selected' : (index % 2 ? '#f5f5f5' : 'inherit'),
           width: '100%',
-          border: isTargeted ? `2px solid ${theme.palette.primary.main}` : 'none',
+          border: isTargeted ? '2px solid' : 'none',
+          borderColor: 'primary.main',
         }}
       >
-        <Typography variant="h6" gutterBottom>Verse {verse.verse}</Typography>
+        <Typography variant="h6" gutterBottom>
+          Verse {verse.verse}
+          <IconButton onClick={toggleEditing} size="small" sx={{ ml: 1 }}>
+            {comment ? <Edit size={16} /> : <MessageSquare size={16} />}
+          </IconButton>
+        </Typography>
+        
+        {isEditing && (
+          <TextField
+            fullWidth
+            variant="outlined"
+            value={comment}
+            onChange={handleCommentChange}
+            onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit()}
+            placeholder="Add a comment..."
+            sx={{ mb: 2 }}
+          />
+        )}
+        
+        {!isEditing && comment && (
+          <Typography variant="body2" sx={{ mb: 2, fontStyle: 'italic' }}>
+            Comment: {comment}
+          </Typography>
+        )}
+        
         <Grid container spacing={2}>
           {models.map(model => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={model}>

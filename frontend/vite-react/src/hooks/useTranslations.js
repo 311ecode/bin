@@ -46,13 +46,54 @@ const useTranslations = (executionGroup) => {
 
   const isItemLoaded = useCallback(index => !!translations[index], [translations]);
 
+  const updateExtraData = useCallback((verseNumber, extraData) => {
+    fetch(`${import.meta.env.VITE_API_URL}/api/addExtraDataToVerse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        executionGroup,
+        verseNumber,
+        extraData: {
+          ...extraData,
+        },
+      }),
+    })
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then(updatedExtraData => {
+      setTranslations(prevTranslations => {
+        const newTranslations = [...prevTranslations];
+        const verseIndex = newTranslations.findIndex(t => t.verse === verseNumber);
+        if (verseIndex !== -1) {
+          newTranslations[verseIndex] = {
+            ...newTranslations[verseIndex],
+            extraData: {
+              ...newTranslations[verseIndex].extraData,
+              [`${executionGroup}_extraData`]: updatedExtraData,
+            },
+          };
+        }
+        return newTranslations;
+      });
+    })
+    .catch(error => {
+      console.error('Error updating extra data:', error);
+      setError(`Failed to update extra data: ${error.message}`);
+    });
+  }, [executionGroup]);
+
   return {
     translations,
     error,
     totalItems,
     isLoading,
     loadMoreItems,
-    isItemLoaded
+    isItemLoaded,
+    updateExtraData
   };
 };
 

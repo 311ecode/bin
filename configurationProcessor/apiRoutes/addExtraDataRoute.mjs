@@ -4,6 +4,80 @@ import path from 'path';
 import { getConfigDetails } from '../getConfigDetails.mjs';
 import fs from 'fs/promises';
 
+/**
+ * Add Extra Data Route
+ * 
+ * This route allows adding extra data to a specific verse within an execution group.
+ * 
+ * @route POST /addExtraDataToVerse
+ * 
+ * @param {string[]} executionGroups - Array of valid execution group names.
+ * @param {string} configPath - Path to the configuration file.
+ * 
+ * @bodyParam {string} executionGroup - The name of the execution group.
+ * @bodyParam {number} verseNumber - The number of the verse to add extra data to.
+ * @bodyParam {Object} extraData - The extra data to add to the verse.
+ * 
+ * @returns {Object} The extra data for the specified verse, including any previously existing data.
+ * 
+ * @throws {400} If executionGroup, verseNumber, or extraData is missing or invalid.
+ * @throws {404} If the specified execution group doesn't exist or the updated verse is not found.
+ * @throws {500} If there's an error parsing the extra data JSON or any other server error.
+ * 
+ * @example
+ * // Request
+ * POST /addExtraDataToVerse
+ * Content-Type: application/json
+ * 
+ * {
+ *   "executionGroup": "group1",
+ *   "verseNumber": 1,
+ *   "extraData": {
+ *     "customKey": "customValue",
+ *     "anotherKey": "anotherValue"
+ *   }
+ * }
+ * 
+ * // Success Response
+ * HTTP/1.1 200 OK
+ * Content-Type: application/json
+ * 
+ * {
+ *   "customKey": "customValue",
+ *   "anotherKey": "anotherValue"
+ * }
+ * 
+ * // Error Response
+ * HTTP/1.1 400 Bad Request
+ * Content-Type: application/json
+ * 
+ * {
+ *   "error": "Missing executionGroup"
+ * }
+ * 
+ * @description
+ * This route handler adds extra data to a specific verse within an execution group.
+ * It performs the following steps:
+ * 1. Validates the input (executionGroup, verseNumber, and extraData).
+ * 2. Checks if the execution group exists.
+ * 3. Retrieves the configuration details for the execution group.
+ * 4. Constructs the path for the extra data file.
+ * 5. Adds the new extra data to the file using the addDataToExtradata function.
+ * 6. Reads back the updated data for the specific verse.
+ * 7. Parses the updated data and returns it as a JSON response.
+ * 
+ * The route uses several helper functions and modules:
+ * - addDataToExtradata: To add the new data to the existing extra data file.
+ * - getConfigDetails: To retrieve configuration details for the execution group.
+ * - fs.promises: For file system operations.
+ * 
+ * Error handling is implemented for various scenarios, including missing parameters,
+ * invalid execution groups, and JSON parsing errors.
+ * 
+ * Note: The response contains only the extra data for the specified verse. It does not
+ * include the executionGroup or verseNumber in the response body. If there was existing
+ * extra data for the verse, it will be merged with the new data in the response.
+ */
 export const addExtraDataRoute = (executionGroups, configPath) => {
   const router = express.Router();
   
