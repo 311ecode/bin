@@ -37,12 +37,15 @@ tcloVApiJustRegistration() {
 tcloVApi() {
   tcloArrays \
   tcloV_api_paths \
-  tclo_api_test_paths
+  tclo_api_test_paths \
+  tcloV_api_related_paths\
+  tcloV_bash_api_paths 
 }
 
-tcloVApiAndBash() {
+tcloVApiNoTests() {
   tcloArrays \
   tcloV_api_paths \
+  tcloV_api_related_src_paths \
   tclo_bash_paths
 }
 
@@ -55,13 +58,27 @@ tcloVbashApi() {
 }
 
 tcloVFrontendBashapi() {
-  tcloArrays tcloV_frontend_paths tcloV_bash_api_paths tcloV_api_paths tcloV_api_related_test_paths
+  tcloArrays tcloV_frontend_paths \
+  tcloV_bash_api_paths \
+  tcloV_api_related_src_paths \
+  tcloV_api_related_test_paths
+}
+
+tcloVApiRelated() {
+  tcloArrays tcloV_api_related_paths
 }
 
 tcloV_api_related_test_paths=(
   "test/enrichVerseJson.test.js"
   "test/addDataToExtradata.test.js"
 )
+
+tcloV_api_related_src_paths=(
+  "lib/verseManipulation/enrichVerseJson.mjs"
+  "lib/verseManipulation/addDataToExtradata.mjs"
+)
+
+tcloV_api_related_paths=($(concatenateGlobalArrays tcloV_api_related_src_paths tcloV_api_related_test_paths))
 
 tcloV_bash_api_paths=(
   "bash/api"

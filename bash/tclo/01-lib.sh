@@ -24,3 +24,18 @@ tcloVerser() {
   tclo "${paths[@]}"
   btcwd
 }
+
+function concatenateGlobalArrays() {
+    local concatenated=()
+
+    for array_name in "$@"; do
+        if [[ -v "$array_name[@]" ]]; then
+            eval "concatenated+=(\"\${$array_name[@]}\")"
+        else
+            echo "Error: $array_name is not a global array" >&2
+            return 1
+        fi
+    done
+
+    printf '%s\n' "${concatenated[@]}"
+}

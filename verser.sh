@@ -5,10 +5,10 @@ verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bashDir="$verserDir/bash"
 processDir="$bashDir"
 
-# Source the other scripts
 while IFS= read -r -d '' script; do
+  echo "$script" > /dev/null
   source "$script"
-done < <(find "$processDir" -type f -name "*.sh" -print0)
+done < <(find "$processDir" -type f -name "*.sh" -print0 | sort -z)
 
 
 frontendDirReact="$verserDir/frontend/vite-react"
