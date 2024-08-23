@@ -1,12 +1,40 @@
 import { resolve } from 'path';
 import { logger } from '../../lib/logger.mjs';
-import express from 'express';
+import express, { Router } from 'express';
 import { createVerseJson } from '../../lib/verseManipulation/concatenateVerses.mjs';
 import { enrichVerseJson } from '../../lib/verseManipulation/enrichVerseJson.mjs';
 import fs from 'fs/promises';
 import { getConfigDetails } from '../getConfigDetails.mjs';
 
 export const log = logger()();
+
+/**
+ * @typedef {Object} TranslationExtraData
+ * @property {Object} basictranslation_extraData Extra metadata for the translation
+ */
+
+/**
+ * @typedef {Object} VerseTranslation
+ * @property {number} verse The verse number
+ * @property {string} original The original text
+ * @property {Object} translations An object with translations from different models
+ * @property {string} translations.original The original text (repeated for convenience)
+ * @property {string} [translations.modelName] Translation by a specific model (e.g., "gemma2-27b.nl", "llama3.1-8b.nl", etc.)
+ * @property {TranslationExtraData} extraData Additional data related to the translation
+ */
+
+/**
+ * @typedef {Object} TranslationResult
+ * @property {string} file The name of the file containing the translations
+ * @property {string} language The target language of the translations
+ * @property {VerseTranslation[]} translations An array of verse translations
+ */
+
+/**
+ * An array of translation results
+ * @type {TranslationResult[]}
+ */
+
 
 /**
  * Translations Route
@@ -20,17 +48,7 @@ export const log = logger()();
  * 
  * @urlParam {string} executionGroup - The name of the execution group to retrieve translations for.
  * 
- * @returns {Object[]} An array of translation objects, each containing:
- *   - file: {string} The name of the file containing the translations.
- *   - language: {string} The target language of the translations.
- *   - translations: {Object[]} An array of verse translations, each containing:
- *     - verse: {number} The verse number.
- *     - original: {string} The original text.
- *     - translations: {Object} An object with translations from different models:
- *       - original: {string} The original text (repeated for convenience).
- *       - [modelName]: {string} Translation by the specific model (e.g., "gemma2-27b.nl", "llama3.1-8b.nl", etc.).
- *     - extraData: {Object} Additional data related to the translation:
- *       - basictranslation_extraData: {Object} Extra metadata for the translation.
+ * @returns {Router} The extra data for the specified verse, including any previously existing data.
  * 
  * @throws {404} If the specified execution group doesn't exist.
  * 
@@ -97,6 +115,10 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath) 
         return res.status(404).json({ error: 'Concatenation configuration not found for this execution group' });
       }
 
+      /**
+     * An array of translation results
+     * @type {TranslationResult[]}
+     */
       const results = [];
 
       for (const concatenateConfig of concatenate) {
@@ -160,7 +182,7 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath) 
         // Enrich the JSON with extra data (even if the file was just created and is empty)
         enrichedJsonData = await enrichVerseJson(baseJson, extraDataPath);
         log(`Enriched JSON data with extra data from: ${extraDataPath}`);
-
+       
         results.push({
           file,
           language,

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { addDataToExtradata } from '../../lib/verseManipulation/addDataToExtradata.mjs';
 import path from 'path';
 import { getConfigDetails } from '../getConfigDetails.mjs';
@@ -18,7 +18,7 @@ import fs from 'fs/promises';
  * @bodyParam {number} verseNumber - The number of the verse to add extra data to.
  * @bodyParam {Object} extraData - The extra data to add to the verse.
  * 
- * @returns {Object} The extra data for the specified verse, including any previously existing data.
+ * @returns {Router} The extra data for the specified verse, including any previously existing data.
  * 
  * @throws {400} If executionGroup, verseNumber, or extraData is missing or invalid.
  * @throws {404} If the specified execution group doesn't exist or the updated verse is not found.
