@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
-import { addDataToExtradata } from '../lib/verseManipulation/addDataToExtradata.mjs';
+import { addDataToExtradata, weedOutEmptyObjects } from '../lib/verseManipulation/addDataToExtradata.mjs';
 
 describe('addDataToExtradata', () => {
   let tempDir;
@@ -200,6 +200,100 @@ describe('addDataToExtradata', () => {
       existing: "Should not be removed",
       alsoExisting: "This should stay too",
       new: "New property"
+    });
+  });
+
+  test('should remove the line when resulting object is empty', async () => {
+    // Initial data
+    await fs.writeFile(extraDataPath, 
+      '|1.| {"toRemove":"This should be removed"}\n' +
+      '|2.| {"keep":"This should stay"}\n' +
+      '|3.| {"alsoRemove":"This should also be removed"}');
+
+    const newData = {
+      1: { toRemove: null },
+      2: { newData: "New information" },
+      3: { alsoRemove: null }
+    };
+
+    await addDataToExtradata(extraDataPath, newData);
+
+    const content = await fs.readFile(extraDataPath, 'utf8');
+    const lines = content.split('\n');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toBe('|2.| {"keep":"This should stay","newData":"New information"}');
+  });
+
+
+  describe('weedOutEmptyObjects', () => {
+    test('should remove lines with empty objects and invalid JSON', async () => {
+      // Initial data with empty objects, invalid JSON, and valid non-empty objects
+      const initialContent = 
+        '|1.| {"data":"This should stay"}\n' +
+        '|2.| {}\n' +
+        '|3.| {"info":"This also stays"}\n' +
+        '|4.| {invalid JSON}\n' +
+        '|5.| {"note":"Keep this too"}\n' +
+        '|6.| not even close to JSON\n' +
+        '|7.| []';
+      
+      await fs.writeFile(extraDataPath, initialContent);
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await weedOutEmptyObjects(extraDataPath);
+
+      const content = await fs.readFile(extraDataPath, 'utf8');
+      const lines = content.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[0]).toBe('|1.| {"data":"This should stay"}');
+      expect(lines[1]).toBe('|3.| {"info":"This also stays"}');
+      expect(lines[2]).toBe('|5.| {"note":"Keep this too"}');
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Removing line with invalid JSON'));
+      consoleSpy.mockRestore();
+    });
+
+    test('should handle files with no problematic objects', async () => {
+      const initialContent = 
+        '|1.| {"data":"No empty objects"}\n' +
+        '|2.| {"info":"All should stay"}';
+      
+      await fs.writeFile(extraDataPath, initialContent);
+
+      await weedOutEmptyObjects(extraDataPath);
+
+      const content = await fs.readFile(extraDataPath, 'utf8');
+      expect(content).toBe(initialContent);
+    });
+
+    test('should handle empty file', async () => {
+      await fs.writeFile(extraDataPath, '');
+
+      await weedOutEmptyObjects(extraDataPath);
+
+      const content = await fs.readFile(extraDataPath, 'utf8');
+      expect(content).toBe('');
+    });
+
+    test('should remove all lines if all are invalid', async () => {
+      const initialContent = 
+        '|1.| {}\n' +
+        '|2.| {invalid JSON}\n' +
+        '|3.| not JSON at all\n' +
+        '|4.| []';
+      
+      await fs.writeFile(extraDataPath, initialContent);
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await weedOutEmptyObjects(extraDataPath);
+
+      const content = await fs.readFile(extraDataPath, 'utf8');
+      expect(content).toBe('');
+
+      expect(consoleSpy).toHaveBeenCalledTimes(2); // For the two invalid JSON lines
+      consoleSpy.mockRestore();
     });
   });
 

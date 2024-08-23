@@ -68,6 +68,15 @@ tcloVApiRelated() {
   tcloArrays tcloV_api_related_paths
 }
 
+tcloVAddDataToExtradata() {
+  tcloArrays tcloV_add_data_to_extradata_paths
+}
+
+tcloV_add_data_to_extradata_paths=(
+  "lib/verseManipulation/addDataToExtradata.mjs"
+  "test/addDataToExtradata.test.js"
+)
+
 tcloV_api_related_test_paths=(
   "test/enrichVerseJson.test.js"
   "test/addDataToExtradata.test.js"
