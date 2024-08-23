@@ -6,6 +6,7 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
   const ref = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState('');
+  const [editingComment, setEditingComment] = useState('');
   const [hasProblem, setHasProblem] = useState(false);
 
   useEffect(() => {
@@ -22,15 +23,33 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
   }, [verse.extraData]);
 
   const handleCommentChange = (event) => {
-    setComment(event.target.value);
+    setEditingComment(event.target.value);
   };
 
   const handleCommentSubmit = () => {
-    onUpdateExtraData(verse.verse, { comment });
+    const trimmedComment = editingComment.trim();
+    const commentToSave = trimmedComment === '' ? null : trimmedComment;
+    onUpdateExtraData(verse.verse, { comment: commentToSave });
+    setComment(trimmedComment);
     setIsEditing(false);
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleCommentSubmit();
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      setEditingComment(comment);
+      setIsEditing(false);
+    }
+  };
+
   const toggleEditing = () => {
+    setEditingComment(comment);
     setIsEditing(!isEditing);
   };
 
@@ -71,10 +90,12 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
         {isEditing && (
           <TextField
             fullWidth
+            multiline
             variant="outlined"
-            value={comment}
+            value={editingComment}
             onChange={handleCommentChange}
-            onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit()}
+            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Add a comment..."
             sx={{ mb: 2 }}
           />
