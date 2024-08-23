@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Typography, Grid, IconButton, TextField } from '@mui/material';
-import { MessageSquare, Edit } from 'lucide-react';
+import { MessageSquare, Edit, AlertTriangle } from 'lucide-react';
 
 const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState('');
+  const [hasProblem, setHasProblem] = useState(false);
 
   useEffect(() => {
     if (ref.current) {
@@ -14,8 +15,9 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
   }, [setRowHeight, index, verse, visibleModels, isEditing]);
 
   useEffect(() => {
-    if (verse.extraData?.basictranslation_extraData?.comment) {
-      setComment(verse.extraData.basictranslation_extraData.comment);
+    if (verse.extraData?.basictranslation_extraData) {
+      setComment(verse.extraData.basictranslation_extraData.comment || '');
+      setHasProblem(verse.extraData.basictranslation_extraData.hasProblem || false);
     }
   }, [verse.extraData]);
 
@@ -30,6 +32,12 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
 
   const toggleEditing = () => {
     setIsEditing(!isEditing);
+  };
+
+  const toggleProblem = () => {
+    const newProblemState = !hasProblem;
+    setHasProblem(newProblemState);
+    onUpdateExtraData(verse.verse, { hasProblem: newProblemState || null });
   };
 
   if (!verse) {
@@ -52,6 +60,9 @@ const VerseItem = ({ verse, index, style, visibleModels, setRowHeight, isTargete
       >
         <Typography variant="h6" gutterBottom>
           Verse {verse.verse}
+          <IconButton onClick={toggleProblem} size="small" sx={{ ml: 1 }}>
+            <AlertTriangle size={16} color={hasProblem ? 'red' : 'gray'} />
+          </IconButton>
           <IconButton onClick={toggleEditing} size="small" sx={{ ml: 1 }}>
             {comment ? <Edit size={16} /> : <MessageSquare size={16} />}
           </IconButton>
