@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Typography, AppBar, Toolbar, Box, CircularProgress } from '@mui/material';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -61,10 +61,18 @@ const ParallelTranslations = ({ executionGroup }) => {
 
   const handleUpdateExtraData = useCallback((verseNumber, extraData) => {
     updateExtraData(verseNumber, extraData);
-  }, [updateExtraData]);
+    // Only reset the specific verse's height
+    if (listRef.current) {
+      const index = translations.findIndex(t => t.verse === verseNumber);
+      if (index !== -1) {
+        listRef.current.resetAfterIndex(index);
+      }
+    }
+  }, [updateExtraData, translations]);
 
   const renderVerse = useCallback(({ index, style }) => (
     <VerseItem
+      key={`verse-${translations[index].verse}`}
       verse={translations[index]}
       index={index}
       style={style}
@@ -75,6 +83,14 @@ const ParallelTranslations = ({ executionGroup }) => {
     />
   ), [translations, visibleModels, setRowHeight, targetVerse, handleUpdateExtraData]);
 
+  const memoizedModelVisibilityControls = useMemo(() => (
+    <ModelVisibilityControls visibleModels={visibleModels} onModelToggle={handleModelToggle} />
+  ), [visibleModels, handleModelToggle]);
+
+  const memoizedVerseNavigation = useMemo(() => (
+    <VerseNavigation onNavigate={navigateToVerse} totalVerses={totalItems} />
+  ), [navigateToVerse, totalItems]);
+
   if (error) return <Typography color="error">{error}</Typography>;
   if (isLoading && translations.length === 0) return <Typography>Loading...</Typography>;
 
@@ -82,10 +98,10 @@ const ParallelTranslations = ({ executionGroup }) => {
     <Box sx={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppBar position="sticky" color="default">
         <Toolbar sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <ModelVisibilityControls visibleModels={visibleModels} onModelToggle={handleModelToggle} />
+          {memoizedModelVisibilityControls}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isNavigating && <CircularProgress size={24} />}
-            <VerseNavigation onNavigate={navigateToVerse} totalVerses={totalItems} />
+            {memoizedVerseNavigation}
           </Box>
         </Toolbar>
       </AppBar>
@@ -121,4 +137,4 @@ const ParallelTranslations = ({ executionGroup }) => {
   );
 };
 
-export default ParallelTranslations;
+export default React.memo(ParallelTranslations);
