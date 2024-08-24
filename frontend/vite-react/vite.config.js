@@ -8,22 +8,15 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
-
   build: {
     sourcemap: true,  // Enable source maps for production builds
   },
-
   server: {
     sourcemap: true,  // Enable source maps for development server
   },
-
-  // resolve: {
-  //   alias: {
-  //     '@mainProjectLib': path.resolve(__dirname, './mainProject/lib'),
-  //     '@mainProjectTranslation': path.resolve(__dirname, './mainProject/translation'),
-  //   }
-  // }
-
+  resolve: {
+    alias: {
+      '@api': path.resolve(__dirname, './api'),
+    }
+  }
 });
-
-// import { someFunction } from '@mainProject/lib/someFile';
