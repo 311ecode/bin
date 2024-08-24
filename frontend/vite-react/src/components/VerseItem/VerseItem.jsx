@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Paper, Typography, Grid, IconButton, TextField, Box } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import { VerseHeader } from './VerseHeader';
@@ -8,7 +8,6 @@ import { TranslationGrid } from './TranslationGrid';
 import { handleVerseItemActions } from './handleVerseItemActions';
 import { initializeVerseItem } from './initializeVerseItem';
 import { renderVerseItem } from './renderVerseItem';
-
 
 const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
@@ -24,6 +23,18 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
   initializeVerseItem(verse, setLocalComment, setLocalHasProblem, setLocalFinalSuggestion, ref, setRowHeight, index, isEditingComment, isEditingFinalSuggestion, localComment, localFinalSuggestion, textFieldRef, finalSuggestionRef);
 
   const { toggleProblem, toggleEditingComment, toggleEditingFinalSuggestion, handleCommentChange, handleKeyPress, handleKeyDown, handleFinalSuggestionChange } = handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem);
+
+  const handleDoubleClick = useCallback((model) => {
+    if (isEditingFinalSuggestion) {
+      setLocalFinalSuggestion(prev => {
+        const verseContent = verse.translations[model];
+        return prev ? `${prev} " ${verseContent} "` : `" ${verseContent} "`;
+      });
+      if (finalSuggestionRef.current) {
+        finalSuggestionRef.current.focus();
+      }
+    }
+  }, [verse, isEditingFinalSuggestion, setLocalFinalSuggestion]);
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;
@@ -58,11 +69,10 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
         
         {renderVerseItem(isEditingComment, localComment, handleCommentChange, handleKeyPress, handleKeyDown, textFieldRef, commentRef, isEditingFinalSuggestion, localFinalSuggestion, handleFinalSuggestionChange, finalSuggestionRef)}
         
-        <TranslationGrid models={models} verse={verse} />
+        <TranslationGrid models={models} verse={verse} onDoubleClick={handleDoubleClick} isEditingFinalSuggestion={isEditingFinalSuggestion} />
       </Paper>
     </div>
   );
 });
 
 export default VerseItem;
-
