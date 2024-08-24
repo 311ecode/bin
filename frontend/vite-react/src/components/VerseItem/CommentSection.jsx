@@ -1,5 +1,5 @@
 import React from 'react';
-import { Paper, TextField } from '@mui/material';
+import { Paper, TextField, Typography } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 
 export const CommentSection = React.memo(({ isEditing, localComment, handleChange, handleKeyPress, handleKeyDown, textFieldRef, commentRef }) => (
@@ -18,6 +18,7 @@ export const CommentSection = React.memo(({ isEditing, localComment, handleChang
     />
   ) : localComment ? (
     <Paper ref={commentRef} elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
+      <Typography variant="subtitle2" color="primary" gutterBottom>Comment:</Typography>
       <ReactMarkdown>{localComment}</ReactMarkdown>
     </Paper>
   ) : null
