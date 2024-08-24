@@ -28,7 +28,9 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
     handleKeyPress, 
     handleKeyDown, 
     handleFinalSuggestionChange,
-    handleSubmit
+    // handleSubmit,
+    handleDoubleClick,
+    handleDoubleClickSave
   } = handleVerseItemActions(
     setLocalComment, 
     setLocalFinalSuggestion, 
@@ -39,30 +41,18 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
     localHasProblem, 
     setIsEditingComment, 
     setIsEditingFinalSuggestion, 
-    setLocalHasProblem
+    setLocalHasProblem,
+    isEditingFinalSuggestion, 
+    finalSuggestionRef,
+    isEditingComment
   );
 
-  const handleDoubleClick = useCallback((model) => {
-    if (isEditingFinalSuggestion) {
-      setLocalFinalSuggestion(prev => {
-        const verseContent = verse.translations[model];
-        if (prev.trim() === '') {
-          return verseContent.trim();
-        } else {
-          return `${prev.trim()} "${verseContent.trim()}"`;
-        }
-      });
-      if (finalSuggestionRef.current) {
-        finalSuggestionRef.current.focus();
-      }
-    }
-  }, [verse, isEditingFinalSuggestion, setLocalFinalSuggestion]);
 
-  const handleDoubleClickSave = useCallback(() => {
-    if (isEditingComment || isEditingFinalSuggestion) {
-      handleSubmit();
-    }
-  }, [isEditingComment, isEditingFinalSuggestion, handleSubmit]);
+  // const handleDoubleClickSave = useCallback(() => {
+  //   if (isEditingComment || isEditingFinalSuggestion) {
+  //     handleSubmit();
+  //   }
+  // }, [isEditingComment, isEditingFinalSuggestion, handleSubmit]);
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;

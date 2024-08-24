@@ -1,7 +1,7 @@
 // src/components/VerseItem/handleVerseItemActions.jsx
 import { useCallback } from "react";
 
-export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem) {
+export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem, isEditingFinalSuggestion, finalSuggestionRef, isEditingComment) {
   const handleCommentChange = useCallback((event) => {
     setLocalComment(event.target.value);
   }, []);
@@ -60,6 +60,28 @@ export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion,
     });
   }, [onUpdateExtraData, verse.verse, localComment, localFinalSuggestion]);
 
+  const handleDoubleClick = useCallback((model) => {
+    if (isEditingFinalSuggestion) {
+      setLocalFinalSuggestion(prev => {
+        const verseContent = verse.translations[model];
+        if (prev.trim() === '') {
+          return verseContent.trim();
+        } else {
+          return `${prev.trim()} "${verseContent.trim()}"`;
+        }
+      });
+      if (finalSuggestionRef.current) {
+        finalSuggestionRef.current.focus();
+      }
+    }
+  }, [verse, isEditingFinalSuggestion, setLocalFinalSuggestion]);
+
+  const handleDoubleClickSave = useCallback(() => {
+    if (isEditingComment || isEditingFinalSuggestion) {
+      handleSubmit();
+    }
+  }, [isEditingComment, isEditingFinalSuggestion, handleSubmit]);
+
   return { 
     toggleProblem, 
     toggleEditingComment, 
@@ -68,6 +90,10 @@ export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion,
     handleKeyPress, 
     handleKeyDown, 
     handleFinalSuggestionChange,
-    handleSubmit  // Add this line to include handleSubmit in the returned object
+    // handleSubmit,  // Add this line to include handleSubmit in the returned object
+    handleDoubleClick,
+    handleDoubleClickSave
   };
+
+
 }
