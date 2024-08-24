@@ -3,7 +3,7 @@ import { Typography, AppBar, Toolbar, Box, CircularProgress } from '@mui/materia
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import InfiniteLoader from 'react-window-infinite-loader';
-import VerseItem from './VerseItem';
+import VerseItem from './VerseItem/VerseItem';
 import ModelVisibilityControls from './ModelVisibilityControls';
 import VerseNavigation from './VerseNavigation';
 import useTranslations from '../hooks/useTranslations';
