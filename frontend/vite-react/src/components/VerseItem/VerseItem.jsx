@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { Paper, Typography, Grid, IconButton, TextField, Box } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import { VerseHeader } from './VerseHeader';
 import { CommentSection } from './CommentSection';
 import { FinalSuggestionSection } from './FinalSuggestionSection';
 import { TranslationGrid } from './TranslationGrid';
+import { handleVerseItemActions } from './handleVerseItemActions';
+import { initializeVerseItem } from './initializeVerseItem';
+import { renderVerseItem } from './renderVerseItem';
 
 
 const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
@@ -18,93 +21,9 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
   const [localHasProblem, setLocalHasProblem] = useState(false);
   const [localFinalSuggestion, setLocalFinalSuggestion] = useState('');
 
-  useEffect(() => {
-    if (verse.extraData?.basictranslation_extraData) {
-      setLocalComment(verse.extraData.basictranslation_extraData.comment || '');
-      setLocalHasProblem(verse.extraData.basictranslation_extraData.hasProblem || false);
-      setLocalFinalSuggestion(verse.extraData.basictranslation_extraData.finalSuggestion || '');
-    }
-  }, [verse.extraData]);
+  initializeVerseItem(verse, setLocalComment, setLocalHasProblem, setLocalFinalSuggestion, ref, setRowHeight, index, isEditingComment, isEditingFinalSuggestion, localComment, localFinalSuggestion, textFieldRef, finalSuggestionRef);
 
-  useEffect(() => {
-    if (ref.current) {
-      setRowHeight(index, ref.current.getBoundingClientRect().height);
-    }
-  }, [setRowHeight, index, isEditingComment, isEditingFinalSuggestion, localComment, localFinalSuggestion]);
-
-  useEffect(() => {
-    if (isEditingComment && textFieldRef.current) {
-      textFieldRef.current.focus();
-      const length = textFieldRef.current.value.length;
-      textFieldRef.current.setSelectionRange(length, length);
-    }
-  }, [isEditingComment]);
-
-  useEffect(() => {
-    if (isEditingFinalSuggestion && finalSuggestionRef.current) {
-      finalSuggestionRef.current.focus();
-      const length = finalSuggestionRef.current.value.length;
-      finalSuggestionRef.current.setSelectionRange(length, length);
-    }
-  }, [isEditingFinalSuggestion]);
-
-  const handleCommentChange = useCallback((event) => {
-    setLocalComment(event.target.value);
-  }, []);
-
-  const handleFinalSuggestionChange = useCallback((event) => {
-    setLocalFinalSuggestion(event.target.value);
-  }, []);
-
-  const handleSubmit = useCallback(() => {
-    const trimmedComment = localComment.trim();
-    const trimmedFinalSuggestion = localFinalSuggestion.trim();
-    const commentToSave = trimmedComment === '' ? null : trimmedComment;
-    const finalSuggestionToSave = trimmedFinalSuggestion === '' ? null : trimmedFinalSuggestion;
-    onUpdateExtraData(verse.verse, { 
-      comment: commentToSave, 
-      hasProblem: localHasProblem,
-      finalSuggestion: finalSuggestionToSave
-    });
-    setIsEditingComment(false);
-    setIsEditingFinalSuggestion(false);
-  }, [localComment, localFinalSuggestion, localHasProblem, onUpdateExtraData, verse.verse]);
-
-  const handleKeyPress = useCallback((event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSubmit();
-    }
-  }, [handleSubmit]);
-
-  const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      setIsEditingComment(false);
-      setIsEditingFinalSuggestion(false);
-    }
-  }, []);
-
-  const toggleEditingComment = useCallback(() => {
-    setIsEditingComment((prev) => !prev);
-    setIsEditingFinalSuggestion(false);
-  }, []);
-
-  const toggleEditingFinalSuggestion = useCallback(() => {
-    setIsEditingFinalSuggestion((prev) => !prev);
-    setIsEditingComment(false);
-  }, []);
-
-  const toggleProblem = useCallback(() => {
-    setLocalHasProblem((prev) => {
-      const newProblemState = !prev;
-      onUpdateExtraData(verse.verse, { 
-        hasProblem: newProblemState || null,
-        comment: localComment,
-        finalSuggestion: localFinalSuggestion
-      });
-      return newProblemState;
-    });
-  }, [onUpdateExtraData, verse.verse, localComment, localFinalSuggestion]);
+  const { toggleProblem, toggleEditingComment, toggleEditingFinalSuggestion, handleCommentChange, handleKeyPress, handleKeyDown, handleFinalSuggestionChange } = handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem);
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;
@@ -137,26 +56,7 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
           toggleEditingFinalSuggestion={toggleEditingFinalSuggestion}
         />
         
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', mb: 2 }}>
-          <CommentSection 
-            isEditing={isEditingComment}
-            localComment={localComment}
-            handleChange={handleCommentChange}
-            handleKeyPress={handleKeyPress}
-            handleKeyDown={handleKeyDown}
-            textFieldRef={textFieldRef}
-            commentRef={commentRef}
-          />
-
-          <FinalSuggestionSection 
-            isEditing={isEditingFinalSuggestion}
-            localFinalSuggestion={localFinalSuggestion}
-            handleChange={handleFinalSuggestionChange}
-            handleKeyPress={handleKeyPress}
-            handleKeyDown={handleKeyDown}
-            finalSuggestionRef={finalSuggestionRef}
-          />
-        </Box>
+        {renderVerseItem(isEditingComment, localComment, handleCommentChange, handleKeyPress, handleKeyDown, textFieldRef, commentRef, isEditingFinalSuggestion, localFinalSuggestion, handleFinalSuggestionChange, finalSuggestionRef)}
         
         <TranslationGrid models={models} verse={verse} />
       </Paper>
@@ -165,3 +65,4 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
 });
 
 export default VerseItem;
+
