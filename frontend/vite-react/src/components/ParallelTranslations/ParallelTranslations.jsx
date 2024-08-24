@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Typography, AppBar, Toolbar, Box, CircularProgress } from '@mui/material';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -7,6 +7,7 @@ import useTranslations from '../../hooks/useTranslations';
 import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { initializeVerseNavigation } from './initializeVerseNavigation';
 import { generateParallelTranslationComponents } from './generateParallelTranslationComponents';
+import VerseVisibilityTracker from '../VerseVisibilityTracker';
 
 export const debounce = (func, delay) => {
   let timeoutId;
@@ -39,10 +40,26 @@ const ParallelTranslations = ({ executionGroup }) => {
     totalItems
   );
 
+  const handleVisibleVerseChange = useCallback((verseNumber) => {
+    console.log(`Verse ${verseNumber} is now visible`);
+    // Add any additional logic here if needed
+  }, []);
+
+  // useEffect(() => {
+  //   const lastVisibleVerse = localStorage.getItem('lastVisibleVerse');
+  //   if (lastVisibleVerse) {
+  //     navigateToVerse(parseInt(lastVisibleVerse, 10));
+  //   }
+  // }, [navigateToVerse]);
+
   initializeVerseNavigation(translations, visibleModels, setVisibleModels, navigateToVerse, listRef);
 
   const { memoizedModelVisibilityControls, memoizedVerseNavigation, getItemSize, renderVerse } = 
     generateParallelTranslationComponents(setVisibleModels, listRef, rowHeights, updateExtraData, translations, visibleModels, targetVerse, navigateToVerse, totalItems);
+
+  const handleItemsRendered = useCallback(({ visibleStartIndex, visibleStopIndex }) => {
+    handleVisibleVerseChange(Math.floor((visibleStartIndex + visibleStopIndex) / 2) + 1);
+  }, [handleVisibleVerseChange]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (isLoading && translations.length === 0) return <Typography>Loading...</Typography>;
@@ -71,7 +88,10 @@ const ParallelTranslations = ({ executionGroup }) => {
                   height={height}
                   itemCount={totalItems}
                   itemSize={getItemSize}
-                  onItemsRendered={onItemsRendered}
+                  onItemsRendered={(props) => {
+                    onItemsRendered(props);
+                    handleItemsRendered(props);
+                  }}
                   ref={(list) => {
                     ref(list);
                     listRef.current = list;
@@ -86,9 +106,9 @@ const ParallelTranslations = ({ executionGroup }) => {
           )}
         </AutoSizer>
       </Box>
+      <VerseVisibilityTracker onVisibleRangeChange={handleVisibleVerseChange} />
     </Box>
   );
 };
 
 export default ParallelTranslations;
-
