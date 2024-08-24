@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Typography, AppBar, Toolbar, Box, CircularProgress } from '@mui/material';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -8,14 +8,7 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { initializeVerseNavigation } from './initializeVerseNavigation';
 import { generateParallelTranslationComponents } from './generateParallelTranslationComponents';
 import VerseVisibilityTracker from '../VerseVisibilityTracker';
-
-export const debounce = (func, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-};
+import { debounce } from '../../utils/functions';
 
 const ParallelTranslations = ({ executionGroup }) => {
   const [visibleModels, setVisibleModels] = useState({});
@@ -40,25 +33,50 @@ const ParallelTranslations = ({ executionGroup }) => {
     totalItems
   );
 
-  const handleVisibleVerseChange = useCallback((verseNumber) => {
-    console.log(`Verse ${verseNumber} is now visible`);
-    // Add any additional logic here if needed
-  }, []);
+  const { handleVisibleVerseChange, renderer: visibilityTrackerRenderer } = VerseVisibilityTracker();
 
-  // useEffect(() => {
-  //   const lastVisibleVerse = localStorage.getItem('lastVisibleVerse');
-  //   if (lastVisibleVerse) {
-  //     navigateToVerse(parseInt(lastVisibleVerse, 10));
-  //   }
-  // }, [navigateToVerse]);
+  const debouncedHandleScroll = useMemo(() => debounce(() => {
+    const currentParams = new URLSearchParams(window.location.search);
+    if (currentParams.has('verse')) {
+      console.log('Debounced scroll detected, verse param exists');
+      currentParams.delete('verse');
+      const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+      console.log('Removed verse parameter from URL after 5 seconds of inactivity');
+    }
+  }, 5000), []);
 
-  initializeVerseNavigation(translations, visibleModels, setVisibleModels, navigateToVerse, listRef);
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const verseParam = urlParams.get('verse');
+    const lastVisibleVerse = localStorage.getItem('lastVisibleVerse');
+
+    if (verseParam) {
+      navigateToVerse(parseInt(verseParam, 10));
+    } else if (lastVisibleVerse) {
+      navigateToVerse(parseInt(lastVisibleVerse, 10));
+    }
+
+    const listContainer = listRef.current?._outerRef;
+    if (listContainer) {
+      listContainer.addEventListener('scroll', debouncedHandleScroll);
+    }
+
+    return () => {
+      if (listContainer) {
+        listContainer.removeEventListener('scroll', debouncedHandleScroll);
+      }
+    };
+  }, [navigateToVerse, debouncedHandleScroll]);
+
+  initializeVerseNavigation(translations, visibleModels, setVisibleModels, navigateToVerse);
 
   const { memoizedModelVisibilityControls, memoizedVerseNavigation, getItemSize, renderVerse } = 
     generateParallelTranslationComponents(setVisibleModels, listRef, rowHeights, updateExtraData, translations, visibleModels, targetVerse, navigateToVerse, totalItems);
 
   const handleItemsRendered = useCallback(({ visibleStartIndex, visibleStopIndex }) => {
-    handleVisibleVerseChange(Math.floor((visibleStartIndex + visibleStopIndex) / 2) + 1);
+    const middleVerse = Math.floor((visibleStartIndex + visibleStopIndex) / 2) + 1;
+    handleVisibleVerseChange(middleVerse);
   }, [handleVisibleVerseChange]);
 
   if (error) return <Typography color="error">{error}</Typography>;
@@ -106,7 +124,7 @@ const ParallelTranslations = ({ executionGroup }) => {
           )}
         </AutoSizer>
       </Box>
-      <VerseVisibilityTracker onVisibleRangeChange={handleVisibleVerseChange} />
+      {visibilityTrackerRenderer}
     </Box>
   );
 };
