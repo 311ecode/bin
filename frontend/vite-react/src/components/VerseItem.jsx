@@ -1,19 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Paper, Typography, Grid, IconButton, TextField } from '@mui/material';
-import { MessageSquare, Edit, AlertTriangle } from 'lucide-react';
+import { Paper, Typography, Grid, IconButton, TextField, Box } from '@mui/material';
+import { MessageSquare, Edit, AlertTriangle, CheckSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight, isTargeted, onUpdateExtraData }) => {
   const ref = useRef(null);
   const commentRef = useRef(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const textFieldRef = useRef(null);
+  const finalSuggestionRef = useRef(null);
+  const [isEditingComment, setIsEditingComment] = useState(false);
+  const [isEditingFinalSuggestion, setIsEditingFinalSuggestion] = useState(false);
   const [localComment, setLocalComment] = useState('');
   const [localHasProblem, setLocalHasProblem] = useState(false);
+  const [localFinalSuggestion, setLocalFinalSuggestion] = useState('');
 
   useEffect(() => {
     if (verse.extraData?.basictranslation_extraData) {
       setLocalComment(verse.extraData.basictranslation_extraData.comment || '');
       setLocalHasProblem(verse.extraData.basictranslation_extraData.hasProblem || false);
+      setLocalFinalSuggestion(verse.extraData.basictranslation_extraData.finalSuggestion || '');
     }
   }, [verse.extraData]);
 
@@ -21,43 +26,81 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
     if (ref.current) {
       setRowHeight(index, ref.current.getBoundingClientRect().height);
     }
-  }, [setRowHeight, index, isEditing, localComment]);
+  }, [setRowHeight, index, isEditingComment, isEditingFinalSuggestion, localComment, localFinalSuggestion]);
+
+  useEffect(() => {
+    if (isEditingComment && textFieldRef.current) {
+      textFieldRef.current.focus();
+      const length = textFieldRef.current.value.length;
+      textFieldRef.current.setSelectionRange(length, length);
+    }
+  }, [isEditingComment]);
+
+  useEffect(() => {
+    if (isEditingFinalSuggestion && finalSuggestionRef.current) {
+      finalSuggestionRef.current.focus();
+      const length = finalSuggestionRef.current.value.length;
+      finalSuggestionRef.current.setSelectionRange(length, length);
+    }
+  }, [isEditingFinalSuggestion]);
 
   const handleCommentChange = useCallback((event) => {
     setLocalComment(event.target.value);
   }, []);
 
-  const handleCommentSubmit = useCallback(() => {
+  const handleFinalSuggestionChange = useCallback((event) => {
+    setLocalFinalSuggestion(event.target.value);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
     const trimmedComment = localComment.trim();
+    const trimmedFinalSuggestion = localFinalSuggestion.trim();
     const commentToSave = trimmedComment === '' ? null : trimmedComment;
-    onUpdateExtraData(verse.verse, { comment: commentToSave, hasProblem: localHasProblem });
-    setIsEditing(false);
-  }, [localComment, localHasProblem, onUpdateExtraData, verse.verse]);
+    const finalSuggestionToSave = trimmedFinalSuggestion === '' ? null : trimmedFinalSuggestion;
+    onUpdateExtraData(verse.verse, { 
+      comment: commentToSave, 
+      hasProblem: localHasProblem,
+      finalSuggestion: finalSuggestionToSave
+    });
+    setIsEditingComment(false);
+    setIsEditingFinalSuggestion(false);
+  }, [localComment, localFinalSuggestion, localHasProblem, onUpdateExtraData, verse.verse]);
 
   const handleKeyPress = useCallback((event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      handleCommentSubmit();
+      handleSubmit();
     }
-  }, [handleCommentSubmit]);
+  }, [handleSubmit]);
 
   const handleKeyDown = useCallback((event) => {
     if (event.key === 'Escape') {
-      setIsEditing(false);
+      setIsEditingComment(false);
+      setIsEditingFinalSuggestion(false);
     }
   }, []);
 
-  const toggleEditing = useCallback(() => {
-    setIsEditing((prev) => !prev);
+  const toggleEditingComment = useCallback(() => {
+    setIsEditingComment((prev) => !prev);
+    setIsEditingFinalSuggestion(false);
+  }, []);
+
+  const toggleEditingFinalSuggestion = useCallback(() => {
+    setIsEditingFinalSuggestion((prev) => !prev);
+    setIsEditingComment(false);
   }, []);
 
   const toggleProblem = useCallback(() => {
     setLocalHasProblem((prev) => {
       const newProblemState = !prev;
-      onUpdateExtraData(verse.verse, { hasProblem: newProblemState || null });
+      onUpdateExtraData(verse.verse, { 
+        hasProblem: newProblemState || null,
+        comment: localComment,
+        finalSuggestion: localFinalSuggestion
+      });
       return newProblemState;
     });
-  }, [onUpdateExtraData, verse.verse]);
+  }, [onUpdateExtraData, verse.verse, localComment, localFinalSuggestion]);
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;
@@ -82,12 +125,15 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
           <IconButton onClick={toggleProblem} size="small" sx={{ ml: 1 }}>
             <AlertTriangle size={16} color={localHasProblem ? 'red' : 'gray'} />
           </IconButton>
-          <IconButton onClick={toggleEditing} size="small" sx={{ ml: 1 }}>
+          <IconButton onClick={toggleEditingComment} size="small" sx={{ ml: 1 }}>
             {localComment ? <Edit size={16} /> : <MessageSquare size={16} />}
+          </IconButton>
+          <IconButton onClick={toggleEditingFinalSuggestion} size="small" sx={{ ml: 1 }}>
+            <CheckSquare size={16} color={localFinalSuggestion ? 'green' : 'gray'} />
           </IconButton>
         </Typography>
         
-        {isEditing ? (
+        {isEditingComment ? (
           <TextField
             fullWidth
             multiline
@@ -98,10 +144,33 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
             onKeyDown={handleKeyDown}
             placeholder="Add a comment (Markdown supported)..."
             sx={{ mb: 2 }}
+            inputRef={textFieldRef}
+            autoFocus
           />
         ) : localComment ? (
           <Paper ref={commentRef} elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
             <ReactMarkdown>{localComment}</ReactMarkdown>
+          </Paper>
+        ) : null}
+
+        {isEditingFinalSuggestion ? (
+          <TextField
+            fullWidth
+            multiline
+            variant="outlined"
+            value={localFinalSuggestion}
+            onChange={handleFinalSuggestionChange}
+            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
+            placeholder="Add a final suggestion..."
+            sx={{ mb: 2 }}
+            inputRef={finalSuggestionRef}
+            autoFocus
+          />
+        ) : localFinalSuggestion ? (
+          <Paper elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom>Final Suggestion:</Typography>
+            <Typography variant="body2">{localFinalSuggestion}</Typography>
           </Paper>
         ) : null}
         
