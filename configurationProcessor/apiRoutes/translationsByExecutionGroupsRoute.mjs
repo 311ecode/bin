@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 import { logger } from '../../lib/logger.mjs';
-import express, { Router } from 'express';
+import  { Router } from 'express';
 import { createVerseJson } from '../../lib/verseManipulation/concatenateVerses.mjs';
 import { enrichVerseJson } from '../../lib/verseManipulation/enrichVerseJson.mjs';
 import fs from 'fs/promises';
@@ -9,8 +9,14 @@ import { getConfigDetails } from '../getConfigDetails.mjs';
 export const log = logger()();
 
 /**
+ * An object with arbitrary key-value pairs
+ * @typedef {Object.<string, any>} ExtraDataObject
+ */
+
+/**
  * @typedef {Object} TranslationExtraData
- * @property {Object} basictranslation_extraData Extra metadata for the translation
+ * @property {ExtraDataObject} [basictranslation_extraData] Extra metadata for basic translation
+ * @property {ExtraDataObject} [*_extraData] Any other property ending with _extraData
  */
 
 /**
@@ -32,9 +38,8 @@ export const log = logger()();
 
 /**
  * An array of translation results
- * @type {TranslationResult[]}
+ * @typedef {TranslationResult[]} TranslationResults
  */
-
 
 /**
  * Translations Route
@@ -99,7 +104,7 @@ export const log = logger()();
  * execution group doesn't exist, it returns a 404 error.
  */
 export const translationsByExecutionGroupsRoute = (executionGroups, configPath) => {
-  const router = express.Router(); 
+  const router = Router(); 
 
   router.get('/translations/:executionGroup', async (req, res) => {
     const { executionGroup } = req.params;
@@ -117,7 +122,7 @@ export const translationsByExecutionGroupsRoute = (executionGroups, configPath) 
 
       /**
      * An array of translation results
-     * @type {TranslationResult[]}
+     * @type {TranslationResults[]}
      */
       const results = [];
 

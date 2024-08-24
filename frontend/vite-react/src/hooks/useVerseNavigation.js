@@ -1,5 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 
+/**
+ * @typedef {import('@api/configurationProcessor/apiRoutes/translationsByExecutionGroupsRoute.mjs').VerseTranslation} VerseTranslation
+ */
+
+/**
+ * @typedef {(startIndex: number, stopIndex: number) => Promise<void>} LoadMoreItemsFunction
+ */
+
+/**
+ * Custom hook for verse navigation
+ * @param {React.RefObject<any>} listRef - Reference to the list component
+ * @param {VerseTranslation[]} translations - Array of verse translations
+ * @param {(index: number) => boolean} isItemLoaded - Function to check if an item is loaded
+ * @param {LoadMoreItemsFunction} loadMoreItems - Function to load more items
+ * @param {number} totalItems - Total number of items
+ * @returns {Object} An object containing verse navigation state and functions
+ */
 export const useVerseNavigation = (listRef, translations, isItemLoaded, loadMoreItems, totalItems) => {
   const [targetVerse, setTargetVerse] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -58,7 +75,7 @@ export const useVerseNavigation = (listRef, translations, isItemLoaded, loadMore
   const navigateToVerse = useCallback((verse) => {
     if (verse !== targetVerse && verse > 0 && verse <= totalItems) {
       setTargetVerse(verse);
-      const url = new URL(window.location);
+      const url = new URL(window.location.href);
       url.searchParams.set('verse', verse);
       window.history.pushState({}, '', url);
     }
