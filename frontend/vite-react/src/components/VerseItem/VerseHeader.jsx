@@ -9,7 +9,11 @@ export const VerseHeader = ({ verse, localHasProblem, localComment, localFinalSu
       <AlertTriangle size={16} color={localHasProblem ? 'red' : 'gray'} />
     </IconButton>
     <IconButton onClick={toggleEditingComment} size="small" sx={{ ml: 1 }}>
-      {localComment ? <Edit size={16} /> : <MessageSquare size={16} />}
+      {localComment ? (
+        <Edit size={16} color="blue" />
+      ) : (
+        <MessageSquare size={16} color="gray" />
+      )}
     </IconButton>
     <IconButton onClick={toggleEditingFinalSuggestion} size="small" sx={{ ml: 1 }}>
       <CheckSquare size={16} color={localFinalSuggestion ? 'green' : 'gray'} />

@@ -17,7 +17,7 @@ export const CommentSection = React.memo(({ isEditing, localComment, handleChang
       inputRef={textFieldRef}
     />
   ) : localComment ? (
-    <Paper ref={commentRef} elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
+    <Paper ref={commentRef} elevation={0} sx={{ p: 1, mb: 2, backgroundColor: 'rgba(0, 0, 255, 0.1)' }}>
       <Typography variant="subtitle2" color="primary" gutterBottom>Comment:</Typography>
       <ReactMarkdown>{localComment}</ReactMarkdown>
     </Paper>
