@@ -28,7 +28,11 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
     if (isEditingFinalSuggestion) {
       setLocalFinalSuggestion(prev => {
         const verseContent = verse.translations[model];
-        return prev ? `${prev} " ${verseContent} "` : `" ${verseContent} "`;
+        if (prev.trim() === '') {
+          return verseContent.trim();
+        } else {
+          return `${prev.trim()} "${verseContent.trim()}"`;
+        }
       });
       if (finalSuggestionRef.current) {
         finalSuggestionRef.current.focus();
