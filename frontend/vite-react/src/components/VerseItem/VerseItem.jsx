@@ -1,9 +1,7 @@
+// src/components/VerseItem/VerseItem.jsx
 import React, { useState, useRef, useCallback } from 'react';
-import { Paper, Typography, Grid, IconButton, TextField, Box } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
+import { Paper } from '@mui/material';
 import { VerseHeader } from './VerseHeader';
-import { CommentSection } from './CommentSection';
-import { FinalSuggestionSection } from './FinalSuggestionSection';
 import { TranslationGrid } from './TranslationGrid';
 import { handleVerseItemActions } from './handleVerseItemActions';
 import { initializeVerseItem } from './initializeVerseItem';
@@ -22,7 +20,27 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
 
   initializeVerseItem(verse, setLocalComment, setLocalHasProblem, setLocalFinalSuggestion, ref, setRowHeight, index, isEditingComment, isEditingFinalSuggestion, localComment, localFinalSuggestion, textFieldRef, finalSuggestionRef);
 
-  const { toggleProblem, toggleEditingComment, toggleEditingFinalSuggestion, handleCommentChange, handleKeyPress, handleKeyDown, handleFinalSuggestionChange } = handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem);
+  const { 
+    toggleProblem, 
+    toggleEditingComment, 
+    toggleEditingFinalSuggestion, 
+    handleCommentChange, 
+    handleKeyPress, 
+    handleKeyDown, 
+    handleFinalSuggestionChange,
+    handleSubmit
+  } = handleVerseItemActions(
+    setLocalComment, 
+    setLocalFinalSuggestion, 
+    localComment, 
+    localFinalSuggestion, 
+    onUpdateExtraData, 
+    verse, 
+    localHasProblem, 
+    setIsEditingComment, 
+    setIsEditingFinalSuggestion, 
+    setLocalHasProblem
+  );
 
   const handleDoubleClick = useCallback((model) => {
     if (isEditingFinalSuggestion) {
@@ -39,6 +57,12 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
       }
     }
   }, [verse, isEditingFinalSuggestion, setLocalFinalSuggestion]);
+
+  const handleDoubleClickSave = useCallback(() => {
+    if (isEditingComment || isEditingFinalSuggestion) {
+      handleSubmit();
+    }
+  }, [isEditingComment, isEditingFinalSuggestion, handleSubmit]);
 
   if (!verse) {
     return <div style={style}>Loading verse {index + 1}...</div>;
@@ -71,9 +95,27 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
           toggleEditingFinalSuggestion={toggleEditingFinalSuggestion}
         />
         
-        {renderVerseItem(isEditingComment, localComment, handleCommentChange, handleKeyPress, handleKeyDown, textFieldRef, commentRef, isEditingFinalSuggestion, localFinalSuggestion, handleFinalSuggestionChange, finalSuggestionRef)}
+        {renderVerseItem(
+          isEditingComment, 
+          localComment, 
+          handleCommentChange, 
+          handleKeyPress, 
+          handleKeyDown, 
+          textFieldRef, 
+          commentRef, 
+          isEditingFinalSuggestion, 
+          localFinalSuggestion, 
+          handleFinalSuggestionChange, 
+          finalSuggestionRef,
+          handleDoubleClickSave
+        )}
         
-        <TranslationGrid models={models} verse={verse} onDoubleClick={handleDoubleClick} isEditingFinalSuggestion={isEditingFinalSuggestion} />
+        <TranslationGrid 
+          models={models} 
+          verse={verse} 
+          onDoubleClick={handleDoubleClick} 
+          isEditingFinalSuggestion={isEditingFinalSuggestion} 
+        />
       </Paper>
     </div>
   );

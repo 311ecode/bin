@@ -1,8 +1,18 @@
+// src/components/VerseItem/CommentSection.jsx
 import React from 'react';
 import { Paper, TextField, Typography } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 
-export const CommentSection = React.memo(({ isEditing, localComment, handleChange, handleKeyPress, handleKeyDown, textFieldRef, commentRef }) => (
+export const CommentSection = React.memo(({ 
+  isEditing, 
+  localComment, 
+  handleChange, 
+  handleKeyPress, 
+  handleKeyDown, 
+  textFieldRef, 
+  commentRef,
+  handleDoubleClick
+}) => (
   isEditing ? (
     <TextField
       fullWidth
@@ -12,6 +22,7 @@ export const CommentSection = React.memo(({ isEditing, localComment, handleChang
       onChange={handleChange}
       onKeyPress={handleKeyPress}
       onKeyDown={handleKeyDown}
+      onDoubleClick={handleDoubleClick}
       placeholder="Add a comment (Markdown supported)..."
       sx={{ mb: 2 }}
       inputRef={textFieldRef}
@@ -23,3 +34,4 @@ export const CommentSection = React.memo(({ isEditing, localComment, handleChang
     </Paper>
   ) : null
 ));
+

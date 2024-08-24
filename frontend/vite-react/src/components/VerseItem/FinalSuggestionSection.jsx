@@ -1,7 +1,16 @@
+// src/components/VerseItem/FinalSuggestionSection.jsx
 import React from 'react';
 import { Paper, Typography, TextField } from '@mui/material';
 
-export const FinalSuggestionSection = React.memo(({ isEditing, localFinalSuggestion, handleChange, handleKeyPress, handleKeyDown, finalSuggestionRef }) => (
+export const FinalSuggestionSection = React.memo(({ 
+  isEditing, 
+  localFinalSuggestion, 
+  handleChange, 
+  handleKeyPress, 
+  handleKeyDown, 
+  finalSuggestionRef,
+  handleDoubleClick
+}) => (
   isEditing ? (
     <TextField
       fullWidth
@@ -11,6 +20,7 @@ export const FinalSuggestionSection = React.memo(({ isEditing, localFinalSuggest
       onChange={handleChange}
       onKeyPress={handleKeyPress}
       onKeyDown={handleKeyDown}
+      onDoubleClick={handleDoubleClick}
       placeholder="Add a final suggestion..."
       sx={{ mb: 2 }}
       inputRef={finalSuggestionRef}

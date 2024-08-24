@@ -1,3 +1,4 @@
+// src/components/VerseItem/handleVerseItemActions.jsx
 import { useCallback } from "react";
 
 export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion, localComment, localFinalSuggestion, onUpdateExtraData, verse, localHasProblem, setIsEditingComment, setIsEditingFinalSuggestion, setLocalHasProblem) {
@@ -21,7 +22,7 @@ export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion,
     });
     setIsEditingComment(false);
     setIsEditingFinalSuggestion(false);
-  }, [localComment, localFinalSuggestion, localHasProblem, onUpdateExtraData, verse.verse]);
+  }, [localComment, localFinalSuggestion, localHasProblem, onUpdateExtraData, verse.verse, setIsEditingComment, setIsEditingFinalSuggestion]);
 
   const handleKeyPress = useCallback((event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -58,5 +59,15 @@ export function handleVerseItemActions(setLocalComment, setLocalFinalSuggestion,
       return newProblemState;
     });
   }, [onUpdateExtraData, verse.verse, localComment, localFinalSuggestion]);
-  return { toggleProblem, toggleEditingComment, toggleEditingFinalSuggestion, handleCommentChange, handleKeyPress, handleKeyDown, handleFinalSuggestionChange };
+
+  return { 
+    toggleProblem, 
+    toggleEditingComment, 
+    toggleEditingFinalSuggestion, 
+    handleCommentChange, 
+    handleKeyPress, 
+    handleKeyDown, 
+    handleFinalSuggestionChange,
+    handleSubmit  // Add this line to include handleSubmit in the returned object
+  };
 }
