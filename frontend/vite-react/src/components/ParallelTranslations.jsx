@@ -9,6 +9,14 @@ import VerseNavigation from './VerseNavigation';
 import useTranslations from '../hooks/useTranslations';
 import { useVerseNavigation } from '../hooks/useVerseNavigation';
 
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
 const ParallelTranslations = ({ executionGroup }) => {
   const [visibleModels, setVisibleModels] = useState({});
   const listRef = useRef();
@@ -40,6 +48,39 @@ const ParallelTranslations = ({ executionGroup }) => {
     }
   }, [translations]);
 
+  const debouncedHandleScroll = useMemo(() => 
+    debounce(() => {
+      const currentParams = new URLSearchParams(window.location.search);
+      if (currentParams.has('verse')) {
+        console.log('Debounced scroll detected, verse param exists');
+        currentParams.delete('verse');
+        const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+        console.log('Removed verse parameter from URL after 5 seconds of inactivity');
+      }
+    }, 5000),
+    []
+  );
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const verseParam = urlParams.get('verse');
+    if (verseParam) {
+      navigateToVerse(parseInt(verseParam, 10));
+    }
+
+    const listContainer = listRef.current?._outerRef;
+    if (listContainer) {
+      listContainer.addEventListener('scroll', debouncedHandleScroll);
+    }
+
+    return () => {
+      if (listContainer) {
+        listContainer.removeEventListener('scroll', debouncedHandleScroll);
+      }
+    };
+  }, [navigateToVerse, debouncedHandleScroll]);
+
   const handleModelToggle = useCallback((model) => {
     setVisibleModels(prev => {
       const newVisibleModels = { ...prev, [model]: !prev[model] };
@@ -61,7 +102,6 @@ const ParallelTranslations = ({ executionGroup }) => {
 
   const handleUpdateExtraData = useCallback((verseNumber, extraData) => {
     updateExtraData(verseNumber, extraData);
-    // Only reset the specific verse's height
     if (listRef.current) {
       const index = translations.findIndex(t => t.verse === verseNumber);
       if (index !== -1) {
@@ -137,4 +177,4 @@ const ParallelTranslations = ({ executionGroup }) => {
   );
 };
 
-export default React.memo(ParallelTranslations);
+export default ParallelTranslations;
