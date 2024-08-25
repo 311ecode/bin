@@ -5,6 +5,20 @@ verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bashDir="$verserDir/bash"
 processDir="$bashDir"
 
+source $RC_LOADER
+
+# loadAllRcFiles  
+loadFilesInDirectory development;
+
+printLoadedFiles
+
+createStateEngine $verserDir  "" "Verser"
+addStateVerser fuu faa
+
+echo "Verser directory: $verserDir"
+
+# addStateVerser "verserDir" "$verserDir"
+
 while IFS= read -r -d '' script; do
   echo "$script" > /dev/null
   source "$script"

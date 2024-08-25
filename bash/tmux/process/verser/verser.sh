@@ -103,3 +103,17 @@ attachVerserTmuxSession() {
     local identifier=$(generateVerserIdentifier "$processName" "$@")
     attachTmuxSession "$identifier"
 }
+
+startVerserDev() {
+    startVerserFrontend
+    startVerserApiForMarai
+    
+    listTmuxSessions
+}
+
+stopVerserDev() {
+    stopVerserFrontend
+    stopVerserApiForMarai
+
+    listTmuxSessions
+}

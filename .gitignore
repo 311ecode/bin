@@ -3,3 +3,5 @@ BrowserStackLocal
 postman-linux-x64/
 concatenated_verses.txt
 node_modules/
+state
+state.lock

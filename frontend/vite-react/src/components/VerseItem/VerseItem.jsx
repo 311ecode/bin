@@ -60,6 +60,19 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
 
   const models = Object.keys(visibleModels).filter(model => visibleModels[model]);
 
+  const handleWatchedStatusChange = useCallback((verseNumber, isWatched, updatePrevious = false) => {
+    if (updatePrevious) {
+      for (let i = 1; i <= verseNumber; i++) {
+        onUpdateExtraData(i, { watched: true, watchedDate: new Date().toISOString() });
+      }
+    } else {
+      onUpdateExtraData(verseNumber, { 
+        watched: isWatched, 
+        watchedDate: isWatched ? new Date().toISOString() : null 
+      });
+    }
+  }, [onUpdateExtraData]);
+
   return (
     <div style={{ ...style, height: 'auto', minHeight: '200px', marginBottom: '20px' }} ref={ref}>
       <Paper 
@@ -83,6 +96,7 @@ const VerseItem = React.memo(({ verse, index, style, visibleModels, setRowHeight
           toggleProblem={toggleProblem}
           toggleEditingComment={toggleEditingComment}
           toggleEditingFinalSuggestion={toggleEditingFinalSuggestion}
+          onWatchedStatusChange={handleWatchedStatusChange}
         />
         
         {renderVerseItem(
