@@ -1,12 +1,12 @@
-// jfzj2/filesystemSearcher.js
 import fs from 'fs/promises';
 import path from 'path';
 import ignore from 'ignore';
 import fuzzysort from 'fuzzysort';
+import { formatSearchResults } from './utils/resultFormatter.js';
 
 export class FilesystemSearcher {
   constructor() {
-    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx'];
+    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh'];
   }
 
   async search(searchString, options = {}) {
@@ -20,9 +20,9 @@ export class FilesystemSearcher {
     await this.searchRecursively(dir, dir, searchString, ignoreFilter, exactResults, fuzzyResults);
 
     const allResults = [...exactResults, ...fuzzyResults];
-    allResults.sort(this.sortResults);
+    allResults.sort((a, b) => this.sortResults(a, b));
 
-    return allResults;
+    return allResults.slice(0, maxResults);
   }
 
   async getIgnoreFilter(dir) {
@@ -143,7 +143,7 @@ export class FilesystemSearcher {
     }
   }
 
-  sortResults = (a, b) => {
+  sortResults(a, b) {
     // Priority 0: Match kind (exact > word > subword > fuzzy)
     const matchKindOrder = { exact: 0, word: 1, subword: 2, fuzzy: 3 };
     if (a.matchKind !== b.matchKind) {
@@ -158,17 +158,13 @@ export class FilesystemSearcher {
     // Priority 2: Files closest to pwd
     if (a.depth !== b.depth) return a.depth - b.depth;
 
-    // Priority 3: File extension (for filename/path matches)
-    if (a.matchType !== 'content' && b.matchType !== 'content') {
-      const extA = path.extname(a.path);
-      const extB = path.extname(b.path);
-      const indexA = this.priorityExtensions.indexOf(extA);
-      const indexB = this.priorityExtensions.indexOf(extB);
-      if (indexA !== indexB) {
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-      }
+    // Priority 3: File extension (priority extensions first)
+    const extA = path.extname(a.path);
+    const extB = path.extname(b.path);
+    const isPriorityA = this.priorityExtensions.includes(extA);
+    const isPriorityB = this.priorityExtensions.includes(extB);
+    if (isPriorityA !== isPriorityB) {
+      return isPriorityA ? -1 : 1;
     }
 
     // Priority 4: Filename over path (for filename/path matches)
@@ -192,34 +188,7 @@ export class FilesystemSearcher {
   }
 
   formatResults(results, searchString) {
-    return results.map(r => {
-      const locationInfo = r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : '';
-      const formattedPath = `./${r.path}${locationInfo}`;
-      
-      let highlightedLine = r.line;
-      if (r.matchKind === 'fuzzy') {
-        const fuzzyMatch = fuzzysort.single(searchString, r.line);
-        if (fuzzyMatch) {
-          highlightedLine = this.highlightFuzzyMatch(fuzzyMatch, '|', '|');
-        }
-      } else {
-        const regex = new RegExp(this.escapeRegExp(searchString), 'gi');
-        highlightedLine = r.line.replace(regex, '|$&|');
-      }
-      
-      return `${formattedPath} | ${highlightedLine}`;
-    });
+    return formatSearchResults(results, searchString);
   }
-  
-  highlightFuzzyMatch(result, highlightOpen, highlightClose) {
-    if (!result || !result.target) return result.target;
-    let highlighted = '';
-    let lastIndex = 0;
-    for (const index of result.indexes) {
-      highlighted += result.target.slice(lastIndex, index) + highlightOpen + result.target[index] + highlightClose;
-      lastIndex = index + 1;
-    }
-    highlighted += result.target.slice(lastIndex);
-    return highlighted;
-  }
+
 }

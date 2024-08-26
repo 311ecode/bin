@@ -1,11 +1,16 @@
-// jfzj2/gitSearcher.js
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fuzzysort from 'fuzzysort';
+import path from 'path';
+import { formatSearchResults } from './utils/resultFormatter.js';
 
 const execAsync = promisify(exec);
 
 export class GitSearcher {
+  constructor() {
+    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh'];
+  }
+
   async search(searchString, options = {}) {
     const { maxResults = 100 } = options;
     const command = `git log --pretty=format:"%H|%h|%an|%ad|%s" --date=short -n ${maxResults * 2}`;
@@ -54,10 +59,11 @@ export class GitSearcher {
     }
   
     const allResults = [...exactResults, ...fuzzyResults];
-    allResults.sort(this.sortResults);
+    allResults.sort((a, b) => this.sortResults(a, b));
   
-    return allResults;
+    return allResults.slice(0, maxResults);
   }
+
 
   async searchCommitContent(commit, searchString, latestContentLines) {
     try {
@@ -149,7 +155,8 @@ export class GitSearcher {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  sortResults = (a, b) => {
+
+  sortResults(a, b) {
     // Priority 0: Match kind (exact > word > subword > fuzzy)
     const matchKindOrder = { exact: 0, word: 1, subword: 2, fuzzy: 3 };
     if (a.matchKind !== b.matchKind) {
@@ -164,54 +171,33 @@ export class GitSearcher {
     // Priority 2: Commit depth (more recent commits first)
     if (a.depth !== b.depth) return a.depth - b.depth;
 
-    // Priority 3: Content matches over commit matches
+    // Priority 3: File extension (priority extensions first)
+    if (a.path && b.path) {
+      const extA = path.extname(a.path);
+      const extB = path.extname(b.path);
+      const isPriorityA = this.priorityExtensions.includes(extA);
+      const isPriorityB = this.priorityExtensions.includes(extB);
+      if (isPriorityA !== isPriorityB) {
+        return isPriorityA ? -1 : 1;
+      }
+    }
+
+    // Priority 4: Content matches over commit matches
     if (a.matchType !== b.matchType) {
       return a.matchType === 'content' ? -1 : 1;
     }
 
-    // Priority 4: Position within file (for content matches)
+    // Priority 5: Position within file (for content matches)
     if (a.lineNumber !== b.lineNumber) return a.lineNumber - b.lineNumber;
     if (a.columnNumber !== b.columnNumber) return a.columnNumber - b.columnNumber;
 
     // If all else is equal, sort alphabetically by path
-    return a.path.localeCompare(b.path);
+    return (a.path || '').localeCompare(b.path || '');
   }
 
   formatResults(results, searchString) {
-    return results.map(r => {
-      let formattedPath;
-      if (r.matchType === 'commit') {
-        formattedPath = r.path; // This is already the short hash
-      } else {
-        const [commitHash, filePath] = r.path.split(':');
-        const locationInfo = r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : '';
-        formattedPath = `${commitHash}:${filePath}${locationInfo}`;
-      }
-      
-      let highlightedLine = r.line;
-      if (r.matchKind === 'fuzzy') {
-        const fuzzyMatch = fuzzysort.single(searchString, r.line);
-        if (fuzzyMatch) {
-          highlightedLine = this.highlightFuzzyMatch(fuzzyMatch, '|', '|');
-        }
-      } else {
-        const regex = new RegExp(this.escapeRegExp(searchString), 'gi');
-        highlightedLine = r.line.replace(regex, '|$&|');
-      }
-      
-      return `${formattedPath} | ${highlightedLine}`;
-    });
+    return formatSearchResults(results, searchString);
   }
-  
-  highlightFuzzyMatch(result, highlightOpen, highlightClose) {
-    if (!result || !result.target) return result.target;
-    let highlighted = '';
-    let lastIndex = 0;
-    for (const index of result.indexes) {
-      highlighted += result.target.slice(lastIndex, index) + highlightOpen + result.target[index] + highlightClose;
-      lastIndex = index + 1;
-    }
-    highlighted += result.target.slice(lastIndex);
-    return highlighted;
-  }
+
+  // ... [keep other methods unchanged]
 }

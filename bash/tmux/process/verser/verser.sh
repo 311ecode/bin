@@ -25,7 +25,6 @@ prepareVerserProcessInfo() {
     echo "$identifier:::$command"
 }
 
-# maraiyeah 
 # Proxy function to start a process
 startProcessByProxy() {
     local prepareFn=$1
