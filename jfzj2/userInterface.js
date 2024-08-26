@@ -110,7 +110,8 @@ export const createInterface = (searchFunction, debugFunction) => {
   };
 
   inputBox.on('keypress', async (ch, key) => {
-    if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
+    if (['down', 'up', 'enter'].includes(key.name)) {
+      resultList.focus();
       resultList.emit('keypress', ch, key);
     } else {
       if (key.name === 'backspace') {
@@ -147,7 +148,19 @@ export const createInterface = (searchFunction, debugFunction) => {
         debug(`Selected: ${selectedItem.content}`);
         // Here you can implement the action to open the selected file or commit
       }
+    } else if (key.name === 'escape') {
+      inputBox.focus();
+      screen.render();
     }
+  });
+
+  screen.key(['tab'], (ch, key) => {
+    if (screen.focused === inputBox) {
+      resultList.focus();
+    } else {
+      inputBox.focus();
+    }
+    screen.render();
   });
 
   screen.render();
