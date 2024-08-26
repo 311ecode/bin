@@ -1,4 +1,3 @@
-// jfzj2/userInterface.js
 import blessed from 'blessed';
 import { inspect } from 'util';
 
@@ -115,15 +114,17 @@ export const createInterface = (searchFunction, debugFunction) => {
     if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
       resultList.emit('keypress', ch, key);
     } else {
-      currentSearchTerm = inputBox.getValue() + (ch || '');
+      if (key.name === 'backspace') {
+        currentSearchTerm = currentSearchTerm.slice(0, -1);
+      } else {
+        currentSearchTerm = inputBox.getValue() + (ch || '');
+      }
       debug(`Current search term: "${currentSearchTerm}"`);
       
-      if (key.name !== 'enter') {
-        try {
-          await handleSearch(currentSearchTerm);
-        } catch (error) {
-          debug(`Error in search: ${error}`);
-        }
+      try {
+        await handleSearch(currentSearchTerm);
+      } catch (error) {
+        debug(`Error in search: ${error}`);
       }
     }
   });
