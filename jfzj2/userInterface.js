@@ -2,8 +2,6 @@ import blessed from 'blessed';
 import { inspect } from 'util';
 
 export const createInterface = (searchFunction, debugFunction) => {
-
-  
   const screen = blessed.screen({
     smartCSR: true,
     title: 'Real-time File Search'
@@ -75,6 +73,7 @@ export const createInterface = (searchFunction, debugFunction) => {
       console.error('Error in debug function:', error);
     }
   };
+
   screen.key(['escape', 'q', 'C-c'], () => process.exit(0));
 
   let currentSearchTerm = '';
@@ -111,14 +110,14 @@ export const createInterface = (searchFunction, debugFunction) => {
   };
 
   inputBox.on('keypress', async (ch, key) => {
-    if (['down', 'up', 'enter', 'left', 'right', 'enter'].includes(key.name)) {
+    if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
       resultList.emit('keypress', ch, key);
     } else {
       if (key.name === 'backspace') {
         currentSearchTerm = currentSearchTerm.slice(0, -1);
       } else {
         // Add the character to the current search term but remove any line breaks.
-        currentSearchTerm = inputBox.getValue().replace(/\r?\n|\r/g, ''); + (ch || '');
+        currentSearchTerm = inputBox.getValue().replace(/\r?\n|\r/g, '') + (ch || '');
       }
       debug(`Current search term: "${currentSearchTerm}"`);
       
@@ -139,13 +138,15 @@ export const createInterface = (searchFunction, debugFunction) => {
     screen.render();
   });
 
-  resultList.key('enter', () => {
-    debug('Enter key pressed on result list');
-    const selected = resultList.selected;
-    if (selected !== undefined) {
-      const selectedItem = resultList.getItem(selected);
-      debug(`Selected: ${selectedItem.content}`);
-      // Here you can implement the action to open the selected file or commit
+  resultList.on('keypress', (ch, key) => {
+    if (key.name === 'enter') {
+      debug('Enter key pressed on result list');
+      const selected = resultList.selected;
+      if (selected !== undefined) {
+        const selectedItem = resultList.getItem(selected);
+        debug(`Selected: ${selectedItem.content}`);
+        // Here you can implement the action to open the selected file or commit
+      }
     }
   });
 
