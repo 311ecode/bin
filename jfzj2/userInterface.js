@@ -111,13 +111,14 @@ export const createInterface = (searchFunction, debugFunction) => {
   };
 
   inputBox.on('keypress', async (ch, key) => {
-    if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
+    if (['down', 'up', 'enter', 'left', 'right', 'enter'].includes(key.name)) {
       resultList.emit('keypress', ch, key);
     } else {
       if (key.name === 'backspace') {
         currentSearchTerm = currentSearchTerm.slice(0, -1);
       } else {
-        currentSearchTerm = inputBox.getValue() + (ch || '');
+        // Add the character to the current search term but remove any line breaks.
+        currentSearchTerm = inputBox.getValue().replace(/\r?\n|\r/g, ''); + (ch || '');
       }
       debug(`Current search term: "${currentSearchTerm}"`);
       
@@ -139,6 +140,7 @@ export const createInterface = (searchFunction, debugFunction) => {
   });
 
   resultList.key('enter', () => {
+    debug('Enter key pressed on result list');
     const selected = resultList.selected;
     if (selected !== undefined) {
       const selectedItem = resultList.getItem(selected);
