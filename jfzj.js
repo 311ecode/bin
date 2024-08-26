@@ -4,6 +4,8 @@ import { createReadStream } from 'fs';
 import readline from 'readline';
 import ignore from 'ignore';
 import blessed from 'blessed';
+import fuzzysort from 'fuzzysort'
+
 import { exec } from 'child_process';
 import sleep from 'atomic-sleep'
 
@@ -27,7 +29,9 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
     ig = ignore();
   }
 
-  const results = [];
+  const exactResults = [];
+  const fuzzyResults = [];
+  const priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx'];
 
   const searchRecursively = async (currentDir) => {
     const files = await fs.readdir(currentDir);
@@ -43,32 +47,117 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
       if (stat.isDirectory()) {
         await searchRecursively(filePath);
       } else if (stat.isFile()) {
-        await searchInFile(filePath, searchString);
+        const fileExt = path.extname(file);
+        if (priorityExtensions.includes(fileExt)) {
+          await searchInFile(filePath, searchString, relativePath);
+        }
+        
+        // Exact and fuzzy filename and path match
+        const lowercaseFile = file.toLowerCase();
+        const lowercasePath = relativePath.toLowerCase();
+        const lowercaseSearch = searchString.toLowerCase();
+        const exactFileMatch = lowercaseFile.includes(lowercaseSearch);
+        const exactPathMatch = lowercasePath.includes(lowercaseSearch);
+        
+        if (exactFileMatch || exactPathMatch) {
+          exactResults.push({
+            path: relativePath,
+            lineNumber: 0,
+            columnNumber: 0,
+            line: `File match: ${file}`,
+            depth: relativePath.split(path.sep).length,
+            matchType: exactFileMatch ? 'filename' : 'path'
+          });
+        } else {
+          const fuzzyFileMatch = fuzzysort.single(searchString, file);
+          const fuzzyPathMatch = fuzzysort.single(searchString, relativePath);
+          if (fuzzyFileMatch || fuzzyPathMatch) {
+            fuzzyResults.push({
+              path: relativePath,
+              lineNumber: 0,
+              columnNumber: 0,
+              line: `File match: ${file}`,
+              depth: relativePath.split(path.sep).length,
+              matchType: fuzzyFileMatch && (!fuzzyPathMatch || fuzzyFileMatch.score > fuzzyPathMatch.score) ? 'filename' : 'path',
+              score: Math.max(fuzzyFileMatch ? fuzzyFileMatch.score : -Infinity, fuzzyPathMatch ? fuzzyPathMatch.score : -Infinity)
+            });
+          }
+        }
       }
     }
   };
 
-  const searchInFile = async (filePath, searchString) => {
-    const fileStream = createReadStream(filePath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
+  const searchInFile = async (filePath, searchString, relativePath) => {
+    const fileContent = await fs.readFile(filePath, 'utf8');
+    const lines = fileContent.split('\n');
 
-    let lineNumber = 0;
+    lines.forEach((line, index) => {
+      const lowercaseLine = line.toLowerCase();
+      const lowercaseSearch = searchString.toLowerCase();
+      const exactMatch = lowercaseLine.includes(lowercaseSearch);
 
-    for await (const line of rl) {
-      lineNumber++;
-      const index = line.toLowerCase().indexOf(searchString.toLowerCase());
-      if (index !== -1) {
-        const relativePath = path.relative(dir, filePath);
-        results.push(` ${relativePath}:${lineNumber}:${index + 1} | ${line.trim()}`);
+      if (exactMatch) {
+        exactResults.push({
+          path: relativePath,
+          lineNumber: index + 1,
+          columnNumber: lowercaseLine.indexOf(lowercaseSearch) + 1,
+          line: line.trim(),
+          depth: relativePath.split(path.sep).length,
+          matchType: 'content'
+        });
+      } else {
+        const fuzzyMatch = fuzzysort.single(searchString, line);
+        if (fuzzyMatch) {
+          fuzzyResults.push({
+            path: relativePath,
+            lineNumber: index + 1,
+            columnNumber: fuzzyMatch.indexes[0] + 1,
+            line: line.trim(),
+            depth: relativePath.split(path.sep).length,
+            matchType: 'content',
+            score: fuzzyMatch.score
+          });
+        }
       }
-    }
+    });
   };
 
   await searchRecursively(dir);
-  return results;
+
+  // Sort results
+  const sortResults = (a, b) => {
+    // Priority 1: Files closest to pwd
+    if (a.depth !== b.depth) return a.depth - b.depth;
+
+    // Priority 2: Content matches over filename/path matches
+    if (a.matchType !== b.matchType) {
+      return a.matchType === 'content' ? -1 : 1;
+    }
+
+    // Priority 3: Position within file (for content matches)
+    if (a.lineNumber !== b.lineNumber) return a.lineNumber - b.lineNumber;
+    if (a.columnNumber !== b.columnNumber) return a.columnNumber - b.columnNumber;
+
+    // If all else is equal, sort alphabetically by path
+    return a.path.localeCompare(b.path);
+  };
+
+  exactResults.sort(sortResults);
+  fuzzyResults.sort((a, b) => {
+    const depthDiff = a.depth - b.depth;
+    if (depthDiff !== 0) return depthDiff;
+    return b.score - a.score;  // Higher score first for fuzzy matches
+  });
+
+  // Combine and format all results
+  const formatResult = (r) => `${r.path}${r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : ''} | ${r.matchType === 'content' ? '' : `${r.matchType} match: `}${r.line}`;
+  
+  const allResults = [
+    ...exactResults.map(formatResult),
+    ...fuzzyResults.map(formatResult)
+  ];
+
+  return allResults;
 };
 
 const createInterface = () => {
