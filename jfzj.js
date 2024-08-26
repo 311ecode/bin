@@ -13,10 +13,16 @@ import sleep from 'atomic-sleep'
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
+    return new Promise(resolve => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        const result = await func(...args);
+        resolve(result);
+      }, delay);
+    });
   };
 };
+
 
 const searchFiles = async (searchString, dir = process.cwd()) => {
   if (!searchString.trim()) return [];
@@ -202,12 +208,14 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
       // For fuzzy matches, use our custom highlighting function with bold tags
       const fuzzyMatch = fuzzysort.single(searchString, r.line);
       if (fuzzyMatch) {
-        highlightedLine = highlightFuzzyMatch(fuzzyMatch, '{bold}', '{/bold}');
+        // highlightedLine = highlightFuzzyMatch(fuzzyMatch, '{bold}', '{/bold}');
+        highlightedLine = highlightFuzzyMatch(fuzzyMatch, ' |', '| ');
       }
     } else {
       // For exact matches, highlight the search string with bold tags
       const regex = new RegExp(searchString, 'gi');
-      highlightedLine = r.line.replace(regex, '{bold}$&{/bold}');
+      // highlightedLine = r.line.replace(regex, '{bold}$&{/bold}');
+      highlightedLine = r.line.replace(regex, ' |$&| ');
     }
     
     return ` ${r.path}${r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : ''} | ${fuzzyPrefix}${matchTypePrefix}${highlightedLine}`;
@@ -256,7 +264,7 @@ const createInterface = () => {
       }
     }
   });
-
+  
   const debugBox = blessed.log({
     parent: screen,
     bottom: 0,
@@ -284,8 +292,7 @@ const createInterface = () => {
 
   let currentSearchTerm = '';
 
-  const debouncedSearch = debounce(async () => {
-    const value = currentSearchTerm;
+  const debouncedSearch = debounce(async (value) => {
     resultList.setItems(['Searching...']);
     screen.render();
 
@@ -310,19 +317,26 @@ const createInterface = () => {
       resultList.setItems(['Error occurred during search']);
       screen.render();
     }
-  }, 300);
+  }, 450);
 
-  inputBox.on('keypress', (ch, key) => {
+  inputBox.on('keypress', async (ch, key) => {
     if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
       resultList.emit('keypress', ch, key);
     } else {
-      currentSearchTerm = inputBox.getValue();
+      // Update the current search term immediately
+      currentSearchTerm = inputBox.getValue() + (ch || '');
       debug(`Current search term: "${currentSearchTerm}"`);
+      
       if (key.name !== 'enter') {
-        debouncedSearch();
+        try {
+          await debouncedSearch(currentSearchTerm);
+        } catch (error) {
+          debug(`Error in debounced search: ${error}`);
+        }
       }
     }
   });
+
   
 
 
