@@ -94,9 +94,9 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
     lines.forEach((line, index) => {
       const lowercaseLine = line.toLowerCase();
       const lowercaseSearch = searchString.toLowerCase();
-      const exactMatch = lowercaseLine.includes(lowercaseSearch);
-
-      if (exactMatch) {
+      
+      // Exact match (case-insensitive)
+      if (lowercaseLine.includes(lowercaseSearch)) {
         exactResults.push({
           path: relativePath,
           lineNumber: index + 1,
@@ -105,9 +105,11 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
           depth: relativePath.split(path.sep).length,
           matchType: 'content'
         });
-      } else {
+      } 
+      // Fuzzy match only if search string is longer than 2 characters
+      else if (searchString.length > 2) {
         const fuzzyMatch = fuzzysort.single(searchString, line);
-        if (fuzzyMatch) {
+        if (fuzzyMatch && fuzzyMatch.score > -5000) { // Adjust this threshold as needed
           fuzzyResults.push({
             path: relativePath,
             lineNumber: index + 1,
@@ -115,7 +117,8 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
             line: line.trim(),
             depth: relativePath.split(path.sep).length,
             matchType: 'content',
-            score: fuzzyMatch.score
+            score: fuzzyMatch.score,
+            isFuzzy: true
           });
         }
       }
@@ -126,15 +129,39 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
 
   // Sort results
   const sortResults = (a, b) => {
+    // Priority 0: Exact matches before fuzzy matches
+    if (a.isFuzzy !== b.isFuzzy) return a.isFuzzy ? 1 : -1;
+
     // Priority 1: Files closest to pwd
     if (a.depth !== b.depth) return a.depth - b.depth;
 
-    // Priority 2: Content matches over filename/path matches
+    // Priority 2: File extension (for filename/path matches)
+    if (a.matchType !== 'content' && b.matchType !== 'content') {
+      const extA = path.extname(a.path);
+      const extB = path.extname(b.path);
+      const priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx'];
+      const indexA = priorityExtensions.indexOf(extA);
+      const indexB = priorityExtensions.indexOf(extB);
+      if (indexA !== indexB) {
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      }
+    }
+
+    // Priority 3: Filename over path (for filename/path matches)
+    if (a.matchType !== 'content' && b.matchType !== 'content') {
+      if (a.matchType !== b.matchType) {
+        return a.matchType === 'filename' ? -1 : 1;
+      }
+    }
+
+    // Priority 4: Content matches over filename/path matches
     if (a.matchType !== b.matchType) {
       return a.matchType === 'content' ? -1 : 1;
     }
 
-    // Priority 3: Position within file (for content matches)
+    // Priority 5: Position within file (for content matches)
     if (a.lineNumber !== b.lineNumber) return a.lineNumber - b.lineNumber;
     if (a.columnNumber !== b.columnNumber) return a.columnNumber - b.columnNumber;
 
@@ -142,22 +169,52 @@ const searchFiles = async (searchString, dir = process.cwd()) => {
     return a.path.localeCompare(b.path);
   };
 
-  exactResults.sort(sortResults);
-  fuzzyResults.sort((a, b) => {
-    const depthDiff = a.depth - b.depth;
-    if (depthDiff !== 0) return depthDiff;
-    return b.score - a.score;  // Higher score first for fuzzy matches
+  // Mark fuzzy results
+  fuzzyResults.forEach(result => {
+    result.isFuzzy = true;
   });
 
-  // Combine and format all results
-  const formatResult = (r) => `${r.path}${r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : ''} | ${r.matchType === 'content' ? '' : `${r.matchType} match: `}${r.line}`;
-  
-  const allResults = [
-    ...exactResults.map(formatResult),
-    ...fuzzyResults.map(formatResult)
-  ];
+  // Combine all results before sorting
+  const allResults = [...exactResults, ...fuzzyResults];
 
-  return allResults;
+  // Sort all results together
+  allResults.sort(sortResults);
+
+  const highlightFuzzyMatch = (result, highlightOpen, highlightClose) => {
+    if (!result || !result.target) return result.target;
+    let highlighted = '';
+    let lastIndex = 0;
+    for (const index of result.indexes) {
+      highlighted += result.target.slice(lastIndex, index) + highlightOpen + result.target[index] + highlightClose;
+      lastIndex = index + 1;
+    }
+    highlighted += result.target.slice(lastIndex);
+    return highlighted;
+  };
+
+  // Modify the formatResult function to use blessed's bold formatting
+  const formatResult = (r) => {
+    const matchTypePrefix = r.matchType === 'content' ? '' : `${r.matchType} match: `;
+    const fuzzyPrefix = r.isFuzzy ? 'fuzzy: ' : '';
+    let highlightedLine = r.line;
+    
+    if (r.isFuzzy) {
+      // For fuzzy matches, use our custom highlighting function with bold tags
+      const fuzzyMatch = fuzzysort.single(searchString, r.line);
+      if (fuzzyMatch) {
+        highlightedLine = highlightFuzzyMatch(fuzzyMatch, '{bold}', '{/bold}');
+      }
+    } else {
+      // For exact matches, highlight the search string with bold tags
+      const regex = new RegExp(searchString, 'gi');
+      highlightedLine = r.line.replace(regex, '{bold}$&{/bold}');
+    }
+    
+    return ` ${r.path}${r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : ''} | ${fuzzyPrefix}${matchTypePrefix}${highlightedLine}`;
+  };  
+  const formattedResults = allResults.map(formatResult);
+
+  return formattedResults;
 };
 
 const createInterface = () => {
@@ -172,7 +229,7 @@ const createInterface = () => {
     left: 0,
     height: 3,
     width: '100%',
-    border: {
+      border: {
       type: 'line'
     },
     focus: true,
@@ -225,13 +282,16 @@ const createInterface = () => {
 
   screen.key(['escape', 'q', 'C-c'], () => process.exit(0));
 
-  const debouncedSearch = debounce(async (value) => {
+  let currentSearchTerm = '';
+
+  const debouncedSearch = debounce(async () => {
+    const value = currentSearchTerm;
     resultList.setItems(['Searching...']);
     screen.render();
 
     try {
       const results = await searchFiles(value);
-      debug(`Found ${results.length} results`);
+      debug(`Found ${results.length} results for "${value}"`);
       
       if (results.length === 0) {
         resultList.setItems(['No results found']);
@@ -253,14 +313,18 @@ const createInterface = () => {
   }, 300);
 
   inputBox.on('keypress', (ch, key) => {
-    if (['down', 'up', 'enter', 'left', 'right'].map(k => k === key.name).reduce((acc, curr) => acc || curr, false)) {
+    if (['down', 'up', 'enter', 'left', 'right'].includes(key.name)) {
       resultList.emit('keypress', ch, key);
     } else {
-      const value = inputBox.getValue();
-      debug(`Search value: "${value}"`);
-      key.name !== 'enter' && debouncedSearch(value);
+      currentSearchTerm = inputBox.getValue();
+      debug(`Current search term: "${currentSearchTerm}"`);
+      if (key.name !== 'enter') {
+        debouncedSearch();
+      }
     }
   });
+  
+
 
   // const openSelectedFile = () => {
   //   const selected = resultList.selected;
