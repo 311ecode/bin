@@ -10,114 +10,6 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-class UnifiedSearcher {
-  constructor(isGitMode = false) {
-    this.isGitMode = isGitMode;
-  }
-
-  async search(searchString, options = {}) {
-    if (this.isGitMode) {
-      return this.searchGitLog(searchString, options);
-    } else {
-      return this.searchFilesystem(searchString, options);
-    }
-  }
-
-  async searchFilesystem(searchString, options = {}) {
-    const { dir = process.cwd(), maxResults = 100 } = options;
-    const ignoreFilter = await this.getIgnoreFilter(dir);
-    const results = [];
-
-    for await (const file of this.walkDirectory(dir, ignoreFilter)) {
-      if (results.length >= maxResults) break;
-
-      const content = await this.readFileContent(file.path);
-      const lines = content.split('\n');
-
-      for (let i = 0; i < lines.length; i++) {
-        const fuzzyResult = fuzzysort.single(searchString, lines[i]);
-        if (fuzzyResult) {
-          results.push({
-            path: file.relativePath,
-            line: i + 1,
-            content: lines[i].trim(),
-            type: 'file',
-            score: fuzzyResult.score,
-            indexes: fuzzyResult.indexes
-          });
-
-          if (results.length >= maxResults) break;
-        }
-      }
-    }
-
-    return results.sort((a, b) => b.score - a.score);
-  }
-
-  async searchGitLog(searchString, options = {}) {
-    const { maxResults = 100 } = options;
-    const command = `git log --pretty=format:"%h|%an|%ad|%s" --date=short -n ${maxResults * 2}`; // Fetch more to filter
-    const { stdout } = await execAsync(command);
-    
-    const commits = stdout.split('\n').map(line => {
-      const [hash, author, date, subject] = line.split('|');
-      return { hash, author, date, subject };
-    });
-
-    const results = commits.map(commit => {
-      const fuzzyResult = fuzzysort.go(searchString, [commit.subject, commit.author], {
-        threshold: -10000,
-        keys: ['subject', 'author']
-      });
-      if (fuzzyResult.total > 0) {
-        const bestMatch = fuzzyResult[0];
-        return {
-          path: commit.hash,
-          line: 0,
-          content: `${commit.date} - ${commit.author}: ${commit.subject}`,
-          type: 'commit',
-          score: bestMatch.score,
-          indexes: bestMatch[0].indexes
-        };
-      }
-      return null;
-    }).filter(Boolean)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxResults);
-
-    return results;
-  }
-
-  async getIgnoreFilter(dir) {
-    try {
-      const gitignoreContent = await fs.readFile(path.join(dir, '.gitignore'), 'utf8');
-      return ignore().add(gitignoreContent + '\n.git\nnode_modules\npackage-lock.json');
-    } catch (error) {
-      return ignore();
-    }
-  }
-
-  async *walkDirectory(dir, ignoreFilter) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relativePath = path.relative(dir, fullPath);
-      
-      if (ignoreFilter.ignores(relativePath)) continue;
-
-      if (entry.isDirectory()) {
-        yield* this.walkDirectory(fullPath, ignoreFilter);
-      } else if (entry.isFile()) {
-        yield { path: fullPath, relativePath };
-      }
-    }
-  }
-
-  async readFileContent(filePath) {
-    return await fs.readFile(filePath, 'utf8');
-  }
-}
-
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -131,10 +23,271 @@ const debounce = (func, delay) => {
   };
 };
 
+class UnifiedSearcher {
+  constructor(isGitMode = false) {
+    this.isGitMode = isGitMode;
+    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx'];
+  }
+
+  async search(searchString, options = {}) {
+    if (this.isGitMode) {
+      return this.searchGitLog(searchString, options);
+    } else {
+      return this.searchFilesystem(searchString, options);
+    }
+  }
+
+  async searchFilesystem(searchString, options = {}) {
+    const { dir = process.cwd(), maxResults = 100 } = options;
+    if (!searchString.trim()) return [];
+
+    const ignoreFilter = await this.getIgnoreFilter(dir);
+    const exactResults = [];
+    const fuzzyResults = [];
+
+    const searchRecursively = async (currentDir) => {
+      const files = await fs.readdir(currentDir);
+
+      for (const file of files) {
+        const filePath = path.join(currentDir, file);
+        const relativePath = path.relative(dir, filePath);
+
+        if (ignoreFilter.ignores(relativePath)) continue;
+
+        const stat = await fs.stat(filePath);
+
+        if (stat.isDirectory()) {
+          await searchRecursively(filePath);
+        } else if (stat.isFile()) {
+          const fileExt = path.extname(file);
+          if (this.priorityExtensions.includes(fileExt)) {
+            await this.searchInFile(filePath, searchString, relativePath, exactResults, fuzzyResults);
+          }
+          
+          this.checkFileNameMatch(file, relativePath, searchString, exactResults, fuzzyResults);
+        }
+      }
+    };
+
+    await searchRecursively(dir);
+
+    const allResults = [...exactResults, ...fuzzyResults];
+    allResults.sort(this.sortResults);
+
+    return this.formatResults(allResults, searchString);
+  }
+
+  async searchGitLog(searchString, options = {}) {
+    const { maxResults = 100 } = options;
+    const command = `git log --pretty=format:"%h|%an|%ad|%s" --date=short -n ${maxResults * 2}`;
+    const { stdout } = await execAsync(command);
+    
+    const commits = stdout.split('\n').map(line => {
+      const [hash, author, date, subject] = line.split('|');
+      return { hash, author, date, subject };
+    });
+
+    const exactResults = [];
+    const fuzzyResults = [];
+
+    commits.forEach((commit, index) => {
+      const lowercaseSubject = commit.subject.toLowerCase();
+      const lowercaseAuthor = commit.author.toLowerCase();
+      const lowercaseSearch = searchString.toLowerCase();
+
+      if (lowercaseSubject.includes(lowercaseSearch) || lowercaseAuthor.includes(lowercaseSearch)) {
+        exactResults.push({
+          path: commit.hash,
+          lineNumber: 0,
+          columnNumber: 0,
+          line: `${commit.date} - ${commit.author}: ${commit.subject}`,
+          depth: index,
+          matchType: 'commit',
+          isFuzzy: false
+        });
+      } else {
+        const fuzzyMatch = fuzzysort.go(searchString, [commit.subject, commit.author], {
+          threshold: -5000,
+          keys: ['subject', 'author']
+        });
+        if (fuzzyMatch.total > 0) {
+          fuzzyResults.push({
+            path: commit.hash,
+            lineNumber: 0,
+            columnNumber: 0,
+            line: `${commit.date} - ${commit.author}: ${commit.subject}`,
+            depth: index,
+            matchType: 'commit',
+            score: fuzzyMatch[0].score,
+            isFuzzy: true
+          });
+        }
+      }
+    });
+
+    const allResults = [...exactResults, ...fuzzyResults];
+    allResults.sort(this.sortResults);
+
+    return this.formatResults(allResults, searchString);
+  }
+
+  async getIgnoreFilter(dir) {
+    try {
+      const gitignoreContent = await fs.readFile(path.join(dir, '.gitignore'), 'utf8');
+      return ignore().add(gitignoreContent + '\n.git\nnode_modules\npackage-lock.json');
+    } catch (error) {
+      return ignore();
+    }
+  }
+
+  async searchInFile(filePath, searchString, relativePath, exactResults, fuzzyResults) {
+    const fileContent = await fs.readFile(filePath, 'utf8');
+    const lines = fileContent.split('\n');
+
+    lines.forEach((line, index) => {
+      const lowercaseLine = line.toLowerCase();
+      const lowercaseSearch = searchString.toLowerCase();
+      
+      if (lowercaseLine.includes(lowercaseSearch)) {
+        exactResults.push({
+          path: relativePath,
+          lineNumber: index + 1,
+          columnNumber: lowercaseLine.indexOf(lowercaseSearch) + 1,
+          line: line.trim(),
+          depth: relativePath.split(path.sep).length,
+          matchType: 'content',
+          isFuzzy: false
+        });
+      } else if (searchString.length > 2) {
+        const fuzzyMatch = fuzzysort.single(searchString, line);
+        if (fuzzyMatch && fuzzyMatch.score > -5000) {
+          fuzzyResults.push({
+            path: relativePath,
+            lineNumber: index + 1,
+            columnNumber: fuzzyMatch.indexes[0] + 1,
+            line: line.trim(),
+            depth: relativePath.split(path.sep).length,
+            matchType: 'content',
+            score: fuzzyMatch.score,
+            isFuzzy: true
+          });
+        }
+      }
+    });
+  }
+
+  checkFileNameMatch(file, relativePath, searchString, exactResults, fuzzyResults) {
+    const lowercaseFile = file.toLowerCase();
+    const lowercasePath = relativePath.toLowerCase();
+    const lowercaseSearch = searchString.toLowerCase();
+    const exactFileMatch = lowercaseFile.includes(lowercaseSearch);
+    const exactPathMatch = lowercasePath.includes(lowercaseSearch);
+    
+    if (exactFileMatch || exactPathMatch) {
+      exactResults.push({
+        path: relativePath,
+        lineNumber: 0,
+        columnNumber: 0,
+        line: `File match: ${file}`,
+        depth: relativePath.split(path.sep).length,
+        matchType: exactFileMatch ? 'filename' : 'path',
+        isFuzzy: false
+      });
+    } else {
+      const fuzzyFileMatch = fuzzysort.single(searchString, file);
+      const fuzzyPathMatch = fuzzysort.single(searchString, relativePath);
+      if (fuzzyFileMatch || fuzzyPathMatch) {
+        fuzzyResults.push({
+          path: relativePath,
+          lineNumber: 0,
+          columnNumber: 0,
+          line: `File match: ${file}`,
+          depth: relativePath.split(path.sep).length,
+          matchType: fuzzyFileMatch && (!fuzzyPathMatch || fuzzyFileMatch.score > fuzzyPathMatch.score) ? 'filename' : 'path',
+          score: Math.max(fuzzyFileMatch ? fuzzyFileMatch.score : -Infinity, fuzzyPathMatch ? fuzzyPathMatch.score : -Infinity),
+          isFuzzy: true
+        });
+      }
+    }
+  }
+
+  sortResults = (a, b) => {
+    // Priority 0: Exact matches before fuzzy matches
+    if (a.isFuzzy !== b.isFuzzy) return a.isFuzzy ? 1 : -1;
+
+    // Priority 1: Files closest to pwd
+    if (a.depth !== b.depth) return a.depth - b.depth;
+
+    // Priority 2: File extension (for filename/path matches)
+    if (a.matchType !== 'content' && b.matchType !== 'content') {
+      const extA = path.extname(a.path);
+      const extB = path.extname(b.path);
+      const indexA = this.priorityExtensions.indexOf(extA);
+      const indexB = this.priorityExtensions.indexOf(extB);
+      if (indexA !== indexB) {
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      }
+    }
+
+    // Priority 3: Filename over path (for filename/path matches)
+    if (a.matchType !== 'content' && b.matchType !== 'content') {
+      if (a.matchType !== b.matchType) {
+        return a.matchType === 'filename' ? -1 : 1;
+      }
+    }
+
+    // Priority 4: Content matches over filename/path matches
+    if (a.matchType !== b.matchType) {
+      return a.matchType === 'content' ? -1 : 1;
+    }
+
+    // Priority 5: Position within file (for content matches)
+    if (a.lineNumber !== b.lineNumber) return a.lineNumber - b.lineNumber;
+    if (a.columnNumber !== b.columnNumber) return a.columnNumber - b.columnNumber;
+
+    // If all else is equal, sort alphabetically by path
+    return a.path.localeCompare(b.path);
+  }
+
+  formatResults(results, searchString) {
+    const highlightFuzzyMatch = (result, highlightOpen, highlightClose) => {
+      if (!result || !result.target) return result.target;
+      let highlighted = '';
+      let lastIndex = 0;
+      for (const index of result.indexes) {
+        highlighted += result.target.slice(lastIndex, index) + highlightOpen + result.target[index] + highlightClose;
+        lastIndex = index + 1;
+      }
+      highlighted += result.target.slice(lastIndex);
+      return highlighted;
+    };
+
+    return results.map(r => {
+      const matchTypePrefix = r.matchType === 'content' ? '' : `${r.matchType} match: `;
+      const fuzzyPrefix = r.isFuzzy ? 'fuzzy: ' : '';
+      let highlightedLine = r.line;
+      
+      if (r.isFuzzy) {
+        const fuzzyMatch = fuzzysort.single(searchString, r.line);
+        if (fuzzyMatch) {
+          highlightedLine = highlightFuzzyMatch(fuzzyMatch, '|', '|');
+        }
+      } else {
+        const regex = new RegExp(searchString, 'gi');
+        highlightedLine = r.line.replace(regex, '|$&|');
+      }
+      
+      return ` ${r.path}${r.lineNumber ? `:${r.lineNumber}:${r.columnNumber}` : ''} | ${fuzzyPrefix}${matchTypePrefix}${highlightedLine}`;
+    });
+  }
+}
+
 const createInterface = (searcher) => {
   const screen = blessed.screen({
     smartCSR: true,
-    title: 'Real-time Fuzzy File Search'
+    title: 'Real-time File Search'
   });
 
   const inputBox = blessed.textbox({
@@ -198,18 +351,6 @@ const createInterface = (searcher) => {
 
   let currentSearchTerm = '';
 
-  const highlightMatches = (str, indexes) => {
-    let result = '';
-    let lastIndex = 0;
-    for (const index of indexes) {
-      result += str.slice(lastIndex, index);
-      result += `{bold}${str[index]}{/bold}`;
-      lastIndex = index + 1;
-    }
-    result += str.slice(lastIndex);
-    return result;
-  };
-
   const debouncedSearch = debounce(async (value) => {
     resultList.setItems(['Searching...']);
     screen.render();
@@ -221,11 +362,7 @@ const createInterface = (searcher) => {
       if (results.length === 0) {
         resultList.setItems(['No results found']);
       } else {
-        const formattedResults = results.map(r => {
-          const highlightedContent = highlightMatches(r.content, r.indexes);
-          return `${r.path}${r.line ? `:${r.line}` : ''} | ${r.type}: ${highlightedContent} (score: ${r.score.toFixed(2)})`;
-        });
-        resultList.setItems(formattedResults);
+        resultList.setItems(results);
         resultList.select(0);
       }
       
@@ -284,12 +421,7 @@ const main = () => {
 
   if (process.argv[2] && process.argv[2] !== '-g') {
     searcher.search(process.argv[2]).then(results => {
-      results.forEach(result => {
-        const highlightedContent = result.content.replace(/./g, (char, index) => 
-          result.indexes.includes(index) ? `\x1b[1m${char}\x1b[0m` : char
-        );
-        console.log(`${result.path}:${result.line} | ${result.type}: ${highlightedContent} (score: ${result.score.toFixed(2)})`);
-      });
+      results.forEach(result => console.log(result));
     });
   } else {
     const { screen, debug } = createInterface(searcher);
