@@ -35,12 +35,15 @@ class UnifiedSearcher {
       const lines = content.split('\n');
 
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().includes(searchString.toLowerCase())) {
+        const fuzzyResult = fuzzysort.single(searchString, lines[i]);
+        if (fuzzyResult) {
           results.push({
             path: file.relativePath,
             line: i + 1,
             content: lines[i].trim(),
-            type: 'file'
+            type: 'file',
+            score: fuzzyResult.score,
+            indexes: fuzzyResult.indexes
           });
 
           if (results.length >= maxResults) break;
@@ -48,7 +51,7 @@ class UnifiedSearcher {
       }
     }
 
-    return results;
+    return results.sort((a, b) => b.score - a.score);
   }
 
   async searchGitLog(searchString, options = {}) {
@@ -61,18 +64,26 @@ class UnifiedSearcher {
       return { hash, author, date, subject };
     });
 
-    const results = commits
-      .filter(commit => 
-        commit.subject.toLowerCase().includes(searchString.toLowerCase()) ||
-        commit.author.toLowerCase().includes(searchString.toLowerCase())
-      )
-      .slice(0, maxResults)
-      .map(commit => ({
-        path: commit.hash,
-        line: 0,
-        content: `${commit.date} - ${commit.author}: ${commit.subject}`,
-        type: 'commit'
-      }));
+    const results = commits.map(commit => {
+      const fuzzyResult = fuzzysort.go(searchString, [commit.subject, commit.author], {
+        threshold: -10000,
+        keys: ['subject', 'author']
+      });
+      if (fuzzyResult.total > 0) {
+        const bestMatch = fuzzyResult[0];
+        return {
+          path: commit.hash,
+          line: 0,
+          content: `${commit.date} - ${commit.author}: ${commit.subject}`,
+          type: 'commit',
+          score: bestMatch.score,
+          indexes: bestMatch[0].indexes
+        };
+      }
+      return null;
+    }).filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxResults);
 
     return results;
   }
@@ -123,7 +134,7 @@ const debounce = (func, delay) => {
 const createInterface = (searcher) => {
   const screen = blessed.screen({
     smartCSR: true,
-    title: 'Real-time File Search'
+    title: 'Real-time Fuzzy File Search'
   });
 
   const inputBox = blessed.textbox({
@@ -187,6 +198,18 @@ const createInterface = (searcher) => {
 
   let currentSearchTerm = '';
 
+  const highlightMatches = (str, indexes) => {
+    let result = '';
+    let lastIndex = 0;
+    for (const index of indexes) {
+      result += str.slice(lastIndex, index);
+      result += `{bold}${str[index]}{/bold}`;
+      lastIndex = index + 1;
+    }
+    result += str.slice(lastIndex);
+    return result;
+  };
+
   const debouncedSearch = debounce(async (value) => {
     resultList.setItems(['Searching...']);
     screen.render();
@@ -198,9 +221,10 @@ const createInterface = (searcher) => {
       if (results.length === 0) {
         resultList.setItems(['No results found']);
       } else {
-        const formattedResults = results.map(r => 
-          `${r.path}${r.line ? `:${r.line}` : ''} | ${r.type}: ${r.content}`
-        );
+        const formattedResults = results.map(r => {
+          const highlightedContent = highlightMatches(r.content, r.indexes);
+          return `${r.path}${r.line ? `:${r.line}` : ''} | ${r.type}: ${highlightedContent} (score: ${r.score.toFixed(2)})`;
+        });
         resultList.setItems(formattedResults);
         resultList.select(0);
       }
@@ -260,7 +284,12 @@ const main = () => {
 
   if (process.argv[2] && process.argv[2] !== '-g') {
     searcher.search(process.argv[2]).then(results => {
-      results.forEach(result => console.log(`${result.path}:${result.line} | ${result.type}: ${result.content}`));
+      results.forEach(result => {
+        const highlightedContent = result.content.replace(/./g, (char, index) => 
+          result.indexes.includes(index) ? `\x1b[1m${char}\x1b[0m` : char
+        );
+        console.log(`${result.path}:${result.line} | ${result.type}: ${highlightedContent} (score: ${result.score.toFixed(2)})`);
+      });
     });
   } else {
     const { screen, debug } = createInterface(searcher);
