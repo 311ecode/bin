@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 
 export class GitSearcher {
   constructor() {
-    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh'];
+    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh', '.txt'] ;
   }
 
   async search(searchString, options = {}) {

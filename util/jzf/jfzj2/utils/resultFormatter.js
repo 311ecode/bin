@@ -25,7 +25,7 @@ export function formatSearchResults(results, searchString) {
     
     const matchKindLabel = `+${r.matchKind}+`;
     
-    return `${formattedPath} | ${matchKindLabel} ${highlightedLine}`;
+    return ` ${formattedPath} | ${matchKindLabel} ${highlightedLine}`;
   });
 }
 

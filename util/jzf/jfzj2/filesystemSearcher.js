@@ -6,7 +6,7 @@ import { formatSearchResults } from './utils/resultFormatter.js';
 
 export class FilesystemSearcher {
   constructor() {
-    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh'];
+    this.priorityExtensions = ['.js', '.mjs', '.ts', '.jsx', '.tsx', '.sh', '.txt'] ;
   }
 
   async search(searchString, options = {}) {

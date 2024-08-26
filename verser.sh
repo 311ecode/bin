@@ -13,7 +13,13 @@ loadVerse() {
 
     source $RC_LOADER
     if [ -z "$VERSER_LOAD_EXECUTED" ]; then
-        loadFilesInDirectory development;
+        loadAllRcFiles addPath development
+
+        addPath "$verserDir/bin"  
+
+        addPath "$verserDir/bin/cucumber"  
+
+
         echo "Current directory is within $verserDir"
         createStateEngine $verserDir  "" "Verser"
         addStateVerser fuu faa
