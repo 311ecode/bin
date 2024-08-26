@@ -79,58 +79,122 @@ class UnifiedSearcher {
 
   async searchGitLog(searchString, options = {}) {
     const { maxResults = 100 } = options;
-    const command = `git log --pretty=format:"%h|%an|%ad|%s" --date=short -n ${maxResults * 2}`;
+    const command = `git log --pretty=format:"%H|%h|%an|%ad|%s" --date=short -n ${maxResults * 2}`;
     const { stdout } = await execAsync(command);
     
     const commits = stdout.split('\n').map(line => {
-      const [hash, author, date, subject] = line.split('|');
-      return { hash, author, date, subject };
+      const [fullHash, shortHash, author, date, subject] = line.split('|');
+      return { fullHash, shortHash, author, date, subject };
     });
-
+  
     const exactResults = [];
     const fuzzyResults = [];
-
-    commits.forEach((commit, index) => {
+    const latestContentLines = new Map(); // To track the latest version of each line
+  
+    for (const commit of commits) {
       const lowercaseSubject = commit.subject.toLowerCase();
       const lowercaseAuthor = commit.author.toLowerCase();
       const lowercaseSearch = searchString.toLowerCase();
-
-      if (lowercaseSubject.includes(lowercaseSearch) || lowercaseAuthor.includes(lowercaseSearch)) {
+  
+      // Check commit details
+      if (commit.fullHash.includes(searchString) || commit.shortHash.includes(searchString) ||
+          lowercaseSubject.includes(lowercaseSearch) || lowercaseAuthor.includes(lowercaseSearch)) {
         exactResults.push({
-          path: commit.hash,
+          path: commit.shortHash,
           lineNumber: 0,
           columnNumber: 0,
           line: `${commit.date} - ${commit.author}: ${commit.subject}`,
-          depth: index,
+          depth: commits.indexOf(commit),
           matchType: 'commit',
           isFuzzy: false
         });
       } else {
-        const fuzzyMatch = fuzzysort.go(searchString, [commit.subject, commit.author], {
+        const fuzzyMatch = fuzzysort.go(searchString, [commit.subject, commit.author, commit.shortHash], {
           threshold: -5000,
-          keys: ['subject', 'author']
+          keys: ['subject', 'author', 'shortHash']
         });
         if (fuzzyMatch.total > 0) {
           fuzzyResults.push({
-            path: commit.hash,
+            path: commit.shortHash,
             lineNumber: 0,
             columnNumber: 0,
             line: `${commit.date} - ${commit.author}: ${commit.subject}`,
-            depth: index,
+            depth: commits.indexOf(commit),
             matchType: 'commit',
             score: fuzzyMatch[0].score,
             isFuzzy: true
           });
         }
       }
-    });
-
+  
+      // Search within file contents for this commit
+      try {
+        const { stdout: diffOutput } = await execAsync(`git diff-tree -r --no-commit-id --name-only ${commit.fullHash}`);
+        const changedFiles = diffOutput.trim().split('\n');
+  
+        for (const file of changedFiles) {
+          try {
+            const { stdout: fileChanges } = await execAsync(`git show ${commit.fullHash} -- ${file}`);
+            const lines = fileChanges.split('\n');
+  
+            lines.forEach((line, index) => {
+              if (line.startsWith('+') && !line.startsWith('+++')) {  // Only check added lines
+                const contentLine = line.slice(1);  // Remove the '+' prefix
+                const lowercaseLine = contentLine.toLowerCase();
+                const lineKey = `${file}:${contentLine}`;
+                
+                if (lowercaseLine.includes(lowercaseSearch)) {
+                  const result = {
+                    path: `${commit.shortHash}:${file}`,
+                    lineNumber: index + 1,
+                    columnNumber: lowercaseLine.indexOf(lowercaseSearch) + 1,
+                    line: contentLine.trim(),
+                    depth: commits.indexOf(commit),
+                    matchType: 'content',
+                    isFuzzy: false
+                  };
+                  latestContentLines.set(lineKey, result);
+                } else if (searchString.length > 2) {
+                  const fuzzyMatch = fuzzysort.single(searchString, contentLine);
+                  if (fuzzyMatch && fuzzyMatch.score > -5000) {
+                    const result = {
+                      path: `${commit.shortHash}:${file}`,
+                      lineNumber: index + 1,
+                      columnNumber: fuzzyMatch.indexes[0] + 1,
+                      line: contentLine.trim(),
+                      depth: commits.indexOf(commit),
+                      matchType: 'content',
+                      score: fuzzyMatch.score,
+                      isFuzzy: true
+                    };
+                    latestContentLines.set(lineKey, result);
+                  }
+                }
+              }
+            });
+          } catch (error) {
+            console.error(`Error processing file ${file} in commit ${commit.shortHash}: ${error.message}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing commit ${commit.shortHash}: ${error.message}`);
+      }
+    }
+  
+    // Add the latest version of each content line to the results
+    for (const result of latestContentLines.values()) {
+      if (result.isFuzzy) {
+        fuzzyResults.push(result);
+      } else {
+        exactResults.push(result);
+      }
+    }
+  
     const allResults = [...exactResults, ...fuzzyResults];
     allResults.sort(this.sortResults);
-
+  
     return this.formatResults(allResults, searchString);
   }
-
   async getIgnoreFilter(dir) {
     try {
       const gitignoreContent = await fs.readFile(path.join(dir, '.gitignore'), 'utf8');
@@ -356,6 +420,7 @@ const createInterface = (searcher) => {
     screen.render();
 
     try {
+      debug(`Searching for "${value} (debounced)"`);
       const results = await searcher.search(value);
       debug(`Found ${results.length} results for "${value}"`);
       
