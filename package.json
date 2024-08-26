@@ -7,6 +7,8 @@
     "lib": "lib"
   },
   "dependencies": {
+    "@types/atomic-sleep": "^1.0.1",
+    "atomic-sleep": "^1.0.0",
     "blessed": "^0.1.81",
     "cors": "^2.8.5",
     "data-uri-to-buffer": "^4.0.1",
