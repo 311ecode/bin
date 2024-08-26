@@ -72,6 +72,10 @@ tcloVAddDataToExtradata() {
   tcloArrays tcloV_add_data_to_extradata_paths
 }
 
+tcloJfz2() {
+  tcloArrays jfz2_paths
+}
+
 tcloV_add_data_to_extradata_paths=(
   "lib/verseManipulation/addDataToExtradata.mjs"
   "test/addDataToExtradata.test.js"
@@ -138,4 +142,9 @@ tcloV_api_test_paths=(
 tcloV_api_just_registration_paths=(
   "configurationProcessor/apiRoutes"
   "configurationProcessor/startApiServer.mjs"
+)
+
+jfz2_paths=(
+  "jfzj2.js"
+  "jfzj2"
 )
