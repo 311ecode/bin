@@ -3,6 +3,7 @@ import path from 'path';
 import ignore from 'ignore';
 import fuzzysort from 'fuzzysort';
 import { formatSearchResults } from './utils/resultFormatter.js';
+import { debug } from 'console';
 
 export class FilesystemSearcher {
   constructor() {
@@ -43,18 +44,25 @@ export class FilesystemSearcher {
 
       if (ignoreFilter.ignores(relativePath)) continue;
 
-      const stat = await fs.stat(filePath);
-
-      if (stat.isDirectory()) {
-        await this.searchRecursively(baseDir, filePath, searchString, ignoreFilter, exactResults, fuzzyResults);
-      } else if (stat.isFile()) {
-        const fileExt = path.extname(file);
-        if (this.priorityExtensions.includes(fileExt)) {
-          await this.searchInFile(filePath, searchString, relativePath, exactResults, fuzzyResults);
-        }
+      try{
         
-        this.checkFileNameMatch(file, relativePath, searchString, exactResults, fuzzyResults);
+        const stat = await fs.stat(filePath);
+
+        if (stat.isDirectory()) {
+          await this.searchRecursively(baseDir, filePath, searchString, ignoreFilter, exactResults, fuzzyResults);
+        } else if (stat.isFile()) {
+          const fileExt = path.extname(file);
+          if (this.priorityExtensions.includes(fileExt)) {
+            await this.searchInFile(filePath, searchString, relativePath, exactResults, fuzzyResults);
+          }
+          
+          this.checkFileNameMatch(file, relativePath, searchString, exactResults, fuzzyResults);
+        }
+
+      }catch(e){
+        debug(e);
       }
+
     }
   }
 

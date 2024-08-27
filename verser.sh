@@ -15,11 +15,6 @@ loadVerse() {
     if [ -z "$VERSER_LOAD_EXECUTED" ]; then
         loadAllRcFiles addPath development
 
-        addPath "$verserDir/bin"  
-
-        addPath "$verserDir/bin/cucumber"  
-
-
         echo "Current directory is within $verserDir"
         createStateEngine $verserDir  "" "Verser"
         addStateVerser fuu faa
@@ -44,10 +39,18 @@ loadVerse() {
     fi
 }
 # loadAllRcFiles  
-loadFilesInDirectory development "setupDirectoryHook";
+loadFilesInDirectory development "setupDirectoryHook, bindCtrlCombo";
 setupDirectoryHook "$verserDir" loadVerse
 
+
+verserJzf() {
+  cd $verserDir
+  jzf
+}
+bindCtrlCombo x x v verserJzf
 
 everser() {
   e $verserDir
 }
+
+addPath "$verserDir/bin"  
