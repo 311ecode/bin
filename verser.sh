@@ -1,7 +1,23 @@
 #!/bin/bash
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+echo $RC_LOADER !!!
+
+verserHookPostfix="verser"
+
+ho(){
+    echo "ho"
+}
+hey(){
+    echo "hey"
+}
+
+export GIT_ADD_PRE_verser='ho hey'
+export GIT_ADD_POST_verser='hey ho'
+
+
 loadVerser() {
+    GIT_PROJECT_HOOK_NAME="$verserHookPostfix"
     bashDir="$verserDir/bash"
     processDir="$bashDir"
 
@@ -35,9 +51,19 @@ loadVerser() {
         # afterStateLoaded aaa
     fi
 }
-# loadAllRcFiles  
-loadFilesInDirectory development "setupDirectoryHook, bindCtrlCombo, initRc";
-setupDirectoryHook "$verserDir" loadVerser
+
+unloadVerser(){
+    echo "Unloading Verser functions."
+    unset GIT_PROJECT_HOOK_NAME
+    echo "GIT_PROJECT_HOOK_NAME:" $GIT_PROJECT_HOOK_NAME 
+}
+
+source $RC_LOADER
+
+loadFilesInDirectory development "setupDirectoryHook, bindCtrlCombo";
+loadFilesInDirectory core "initRc, addPath"
+
+setupDirectoryHook "$verserDir" loadVerser unloadVerser
 
 addPath "$verserDir/bin"  
 
@@ -48,50 +74,50 @@ initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 # initRc "#********* Verser functions end *********#"
 
 
-createSymlinkWrapper() {
-    local source_dir="$1"
-    shift  # Remove the first argument (source_dir) from the argument list
+# createSymlinkWrapper() {
+#     local source_dir="$1"
+#     shift  # Remove the first argument (source_dir) from the argument list
 
-    local target_dir=$(mktemp -d)
-    local random_suffix=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)
-    local inner_function_name="inner_symlink_func_${random_suffix}"
-    local outer_function_name="createSymlinkFunction_${random_suffix}"
+#     local target_dir=$(mktemp -d)
+#     local random_suffix=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)
+#     local inner_function_name="inner_symlink_func_${random_suffix}"
+#     local outer_function_name="createSymlinkFunction_${random_suffix}"
 
-    # Create the inner function using createSymlinkFunction
-    createSymlink "$source_dir" "$target_dir" "$inner_function_name"
+#     # Create the inner function using createSymlinkFunction
+#     createSymlink "$source_dir" "$target_dir" "$inner_function_name"
 
-    # Create the outer wrapper function
-    eval "
-    $outer_function_name() {
-        # Call the inner function with all received arguments
-        $inner_function_name \"\$@\"
+#     # Create the outer wrapper function
+#     eval "
+#     $outer_function_name() {
+#         # Call the inner function with all received arguments
+#         $inner_function_name \"\$@\"
         
-        # Print the target directory path to stdout
-        echo \"$target_dir\"
-    }
-    "
+#         # Print the target directory path to stdout
+#         echo \"$target_dir\"
+#     }
+#     "
 
-    # Immediately use the created outer function with the remaining arguments
-    local result=$($outer_function_name "$@")
+#     # Immediately use the created outer function with the remaining arguments
+#     local result=$($outer_function_name "$@")
     
-    # Print the result (target directory path)
-    echo "Symlinks created in: $result"
+#     # Print the result (target directory path)
+#     echo "Symlinks created in: $result"
     
-    if [ -n "${pathOnly+x}" ]; then
-        echo "${target_dir}"
-    else
-        if command -v code &> /dev/null; then
-            code "${target_dir}"
-            echo "Opened Visual Studio Code in ${target_dir}"
-        else
-            echo "Visual Studio Code (command 'code') not found. Please open ${target_dir} manually."
-        fi
-    fi
-}
+#     if [ -n "${pathOnly+x}" ]; then
+#         echo "${target_dir}"
+#     else
+#         if command -v code &> /dev/null; then
+#             code "${target_dir}"
+#             echo "Opened Visual Studio Code in ${target_dir}"
+#         else
+#             echo "Visual Studio Code (command 'code') not found. Please open ${target_dir} manually."
+#         fi
+#     fi
+# }
 
-function createSymlinkWrapperTest() {                                                                                                      
-    cls    
-    path=$(pathOnly=t createSymlinkWrapper ./ /home/imre/bin/verser.sh /home/imre/bin/frontend/vite-react/index.html /home/imre/bin/frontend/vite-react/| tail -n 1)   
-    echo  $path
-    zed $path
-}   
+# function createSymlinkWrapperTest() {                                                                                                      
+#     cls    
+#     path=$(pathOnly=t createSymlinkWrapper ./ /home/imre/bin/verser.sh /home/imre/bin/frontend/vite-react/index.html /home/imre/bin/frontend/vite-react/| tail -n 1)   
+#     echo  $path
+#     zed $path
+# }   
