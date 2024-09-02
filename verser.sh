@@ -1,7 +1,6 @@
 #!/bin/bash
 verserDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-echo $RC_LOADER !!!
+source $RC_LOADER
 
 verserHookPostfix="verser"
 
@@ -12,9 +11,12 @@ hey(){
     echo "hey"
 }
 
-export GIT_ADD_PRE_verser='ho hey'
-export GIT_ADD_POST_verser='hey ho'
+pausefor200seconds(){
+    sleep 200
+}
 
+export GIT_ADD_PRE_verser='ho hey addSymlinksToGitignore'
+export GIT_ADD_POST_verser='hey ho restoreGitignore'
 
 loadVerser() {
     GIT_PROJECT_HOOK_NAME="$verserHookPostfix"
@@ -24,7 +26,6 @@ loadVerser() {
     source $RC_LOADER
     if [ -z "$VERSER_LOAD_EXECUTED" ]; then
         loadAllRcFiles addPath development
-
         echo "Current directory is within $verserDir"
         createStateEngine $verserDir  "" "Verser"
         addStateVerser fuu faa
@@ -38,7 +39,6 @@ loadVerser() {
 
         frontendDirReact="$verserDir/frontend/vite-react"
 
-        # createSymlinkFunction "$verserDir" "./frontend/vite-react/api" "linkToFrontendFromVerser"
 
         # linkToFrontendFromVerser configurationProcessor 
         # linkToFrontendFromVerser lib
@@ -46,6 +46,9 @@ loadVerser() {
         currentFile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
         ensureInBashrc "${currentFile}"
 
+        # createSymlinkFunction "$verserDir" "./frontend/vite-react/api" "linkToFrontendFromVerser"
+        createSymlinkFunction $verserDir $frontendDirReact/api linkToFrontendFromVerser
+        
         # after
         echo "Verser functions loaded."
         # afterStateLoaded aaa
@@ -58,7 +61,6 @@ unloadVerser(){
     echo "GIT_PROJECT_HOOK_NAME:" $GIT_PROJECT_HOOK_NAME 
 }
 
-source $RC_LOADER
 
 loadFilesInDirectory development "setupDirectoryHook, bindCtrlCombo";
 loadFilesInDirectory core "initRc, addPath"
@@ -72,6 +74,7 @@ initRc "RC_LOADER=\${RC_LOADER} source /home/imre/bin/verser.sh"
 initRc "everser() { e $verserDir; };  bindCtrlCombo x v everser;"
 initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 # initRc "#********* Verser functions end *********#"
+
 
 
 # createSymlinkWrapper() {
@@ -121,3 +124,5 @@ initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 #     echo  $path
 #     zed $path
 # }   
+# 
+# 1824  2024-08-28 04:41:29 create_symlink_wrapper . react.txt  configurationProcessor/apiRoutes/
