@@ -46,9 +46,9 @@ loadVerser() {
         currentFile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
         ensureInBashrc "${currentFile}"
 
-        # createSymlinkFunction "$verserDir" "./frontend/vite-react/api" "linkToFrontendFromVerser"
         createSymlinkFunction $verserDir $frontendDirReact/api linkToFrontendFromVerser
-        
+        linkToFrontendFromVerser configurationProcessor
+        linkToFrontendFromVerser lib
         # after
         echo "Verser functions loaded."
         # afterStateLoaded aaa
