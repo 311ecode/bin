@@ -4,19 +4,7 @@ source $RC_LOADER
 
 verserHookPostfix="verser"
 
-ho(){
-    echo "ho"
-}
-hey(){
-    echo "hey"
-}
-
-pausefor200seconds(){
-    sleep 200
-}
-
-export GIT_ADD_PRE_verser='ho hey addSymlinksToGitignore'
-export GIT_ADD_POST_verser='hey ho restoreGitignore'
+createGitHookVariables verser "addSymlinksToGitExclude" "removeSymlinksFromGitExclude"
 
 loadVerser() {
     GIT_PROJECT_HOOK_NAME="$verserHookPostfix"
@@ -40,7 +28,7 @@ loadVerser() {
         frontendDirReact="$verserDir/frontend/vite-react"
 
 
-        # linkToFrontendFromVerser configurationProcessor 
+        # linkToFrontendFromVerser configurationProcessor
         # linkToFrontendFromVerser lib
 
         currentFile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
@@ -58,7 +46,7 @@ loadVerser() {
 unloadVerser(){
     echo "Unloading Verser functions."
     unset GIT_PROJECT_HOOK_NAME
-    echo "GIT_PROJECT_HOOK_NAME:" $GIT_PROJECT_HOOK_NAME 
+    echo "GIT_PROJECT_HOOK_NAME:" $GIT_PROJECT_HOOK_NAME
 }
 
 
@@ -67,7 +55,7 @@ loadFilesInDirectory core "initRc, addPath"
 
 setupDirectoryHook "$verserDir" loadVerser unloadVerser
 
-addPath "$verserDir/bin"  
+addPath "$verserDir/bin"
 
 # initRc "#******** Verser functions begin ********#"
 initRc "RC_LOADER=\${RC_LOADER} source /home/imre/bin/verser.sh"
@@ -94,7 +82,7 @@ initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 #     $outer_function_name() {
 #         # Call the inner function with all received arguments
 #         $inner_function_name \"\$@\"
-        
+
 #         # Print the target directory path to stdout
 #         echo \"$target_dir\"
 #     }
@@ -102,10 +90,10 @@ initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 
 #     # Immediately use the created outer function with the remaining arguments
 #     local result=$($outer_function_name "$@")
-    
+
 #     # Print the result (target directory path)
 #     echo "Symlinks created in: $result"
-    
+
 #     if [ -n "${pathOnly+x}" ]; then
 #         echo "${target_dir}"
 #     else
@@ -118,11 +106,11 @@ initRc "verserJzf() { cd $verserDir; jzf; }; bindCtrlCombo x x v verserJzf;"
 #     fi
 # }
 
-# function createSymlinkWrapperTest() {                                                                                                      
-#     cls    
-#     path=$(pathOnly=t createSymlinkWrapper ./ /home/imre/bin/verser.sh /home/imre/bin/frontend/vite-react/index.html /home/imre/bin/frontend/vite-react/| tail -n 1)   
+# function createSymlinkWrapperTest() {
+#     cls
+#     path=$(pathOnly=t createSymlinkWrapper ./ /home/imre/bin/verser.sh /home/imre/bin/frontend/vite-react/index.html /home/imre/bin/frontend/vite-react/| tail -n 1)
 #     echo  $path
 #     zed $path
-# }   
-# 
+# }
+#
 # 1824  2024-08-28 04:41:29 create_symlink_wrapper . react.txt  configurationProcessor/apiRoutes/
