@@ -63,8 +63,6 @@ loadFilesInDirectory core "initRc, addPath"
 
 setupDirectoryHook "$verserDir" loadVerser unloadVerser
 
-addPath "$verserDir/bin"
-
 # initRc "#******** Verser functions begin ********#"
 initRc "RC_LOADER=\${RC_LOADER} source /home/imre/bin/verser.sh"
 initRc "everser() { e $verserDir; };  bindCtrlCombo x v everser;"

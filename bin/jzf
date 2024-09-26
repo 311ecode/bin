@@ -1,3 +1,0 @@
-#!/bin/bash
-myDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-node "${myDir}/../util/jzf/jzf.js" "$@"
